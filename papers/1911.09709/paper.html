@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <link rel="stylesheet" href="/css/site.css" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+
+  <meta charset="utf-8" />
+  <title>Automatically Neutralizing Subjective Bias in Text </title>
+</head>
+
+<body>
+  <main>
+    <header>
+      <h1>Automatically Neutralizing Subjective Bias in Text </h1>
+      [<a href="/">Index</a>]
+    </header>
+    <article class="column content">
+      <!-- Must be unindented to prevent code indentation being broken -->
+<h1 id="introduction">Introduction</h1>
+<p>Writers and editors of texts like encyclopedias, news, and textbooks strive to avoid biased language. Yet bias remains ubiquitous. 62% of Americans believe their news is biased <span class="citation" data-cites="gallup"></span> and bias is the single largest source of distrust in the media <span class="citation" data-cites="knightSurvey"></span>.</p>
+<figure>
+<img src="firstpage2.png" id="figure:cnn" alt="" /><figcaption>Example output from our <span class="smallcaps">modular</span> algorithm. “Exposed” is a factive verb that presupposes the truth of its complement (that McCain is unprincipled). Replacing “exposed” with “described” neutralizes the headline because it conveys a similar main clause proposition (someone is asserting McCain is unprincipled), but no longer introduces the authors subjective bias via presupposition.<span label="figure:cnn"></span></figcaption>
+</figure>
+<p>This work presents data and algorithms for automatically reducing bias in text. We focus on a particular kind of bias: <em>inappropriate subjectivity</em> (“subjective bias”). Subjective bias occurs when language that should be neutral and fair is skewed by feeling, opinion, or taste (whether consciously or unconsciously). In practice, we identify subjective bias via the method of <span class="citation" data-cites="recasens2013linguistic"></span> : using Wikipedia’s <em>neutral point of view (NPOV)</em> policy.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> This policy is a set of principles which includes “avoiding stating opinions as facts” and “preferring nonjudgemental language”.</p>
+<p>For example a news headline like “John McCain exposed as an unprincipled politician" (Figure <a href="#figure:cnn" data-reference-type="ref" data-reference="figure:cnn">1</a>) is biased because the verb <em>expose</em> is a factive verb that presupposes the truth of its complement; a non-biased sentence would use a verb like <em>describe</em> so as not to presuppose the subjective opinion of the writer. “Pilfered” in “the gameplay is <em>pilfered</em> from DDR” (Table <a href="#tab:samples" data-reference-type="ref" data-reference="tab:samples">[tab:samples]</a>) subjectively frames the shared gameplay as a kind of theft. “His” in “a lead programmer usually spends <em>his</em> career” again introduces a biased and subjective viewpoint (that all programmers are men) through presupposition.</p>
+<p>We aim to debias text by suggesting edits that would make it more neutral. This contrasts with prior research which has debiased <em>representations</em> of text by removing dimensions of prejudice from word embeddings <span class="citation" data-cites="bolukbasi2016man gonen2019lipstick ethayarajh2019understanding"></span> and the hidden states of predictive models <span class="citation" data-cites="zhao2018gender das2018mitigating"></span>. To avoid overloading the definition of “debias,” we refer to our kind of text debiasing as <em>neutralizing</em> that text. Figure <a href="#figure:cnn" data-reference-type="ref" data-reference="figure:cnn">1</a> gives an example.</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;"><strong>Source</strong></th>
+<th style="text-align: left;"><strong>Target</strong></th>
+<th style="text-align: left;"><strong>Subcategory</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">A new downtown is being developed which</td>
+<td style="text-align: left;">A new downtown is being developed which</td>
+<td style="text-align: left;">Epistemological</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">will bring back...</td>
+<td style="text-align: left;"><strong>which its promoters hope</strong> will bring back..</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">The authors’ <strong>exposé</strong> on nutrition studies</td>
+<td style="text-align: left;">The authors’ <strong>statements</strong> on nutrition studies</td>
+<td style="text-align: left;">Epistemological</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">He started writing books <strong>revealing</strong> a vast world conspiracy</td>
+<td style="text-align: left;">He started writing books <strong>alleging</strong> a vast world conspiracy</td>
+<td style="text-align: left;">Epistemological</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Go is <strong>the deepest</strong> game in the world.</td>
+<td style="text-align: left;">Go is <strong>one of the deepest</strong> games in the world.</td>
+<td style="text-align: left;">Framing</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Most of the gameplay is <strong>pilfered from</strong> DDR.</td>
+<td style="text-align: left;">Most of the gameplay is <strong>based on</strong> DDR.</td>
+<td style="text-align: left;">Framing</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Jewish forces overcome Arab <strong>militants</strong>.</td>
+<td style="text-align: left;">Jewish forces overcome Arab <strong>forces</strong>.</td>
+<td style="text-align: left;">Framing</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">A lead programmer usually spends</td>
+<td style="text-align: left;">Lead programmers often spend</td>
+<td style="text-align: left;">Demographic</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>his career</strong> mired in obscurity.</td>
+<td style="text-align: left;"><strong>their careers</strong> mired in obscurity.</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">The lyrics are about <strong>mankind</strong>’s perceived idea of hell.</td>
+<td style="text-align: left;">The lyrics are about <strong>humanity</strong>’s perceived idea of hell.</td>
+<td style="text-align: left;">Demographic</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Marriage is a <strong>holy union</strong> of individuals.</td>
+<td style="text-align: left;">Marriage is a <strong>personal union</strong> of individuals.</td>
+<td style="text-align: left;">Demographic</td>
+</tr>
+</tbody>
+</table>
+<p>We introduce the Wiki Neutrality Corpus (WNC). This is a new parallel corpus of 180,000 biased and neutralized sentence pairs along with contextual sentences and metadata. The corpus was harvested from Wikipedia edits that were designed to ensure texts had a neutral point of view. WNC is the first parallel corpus of biased language.</p>
+<p>We also define the task of <em>neutralizing</em> subjectively biased text. This task shares many properties with tasks like detecting framing or epistemological bias <span class="citation" data-cites="recasens2013linguistic"></span>, or veridicality assessment/factuality prediction <span class="citation" data-cites="sauri2009factbank marneffe12 rudinger18 white18"></span>. Our new task extends these detection/classification problems into a generation task: generating more neutral text with otherwise similar meaning.</p>
+<p>Finally, we propose a pair of novel sequence-to-sequence algorithms for this neutralization task. Both methods leverage denoising autoencoders and a token-weighted loss function. An interpretable and controllable <span class="smallcaps">modular</span> algorithm breaks the problem into (1) detection and (2) editing, using (1) a BERT-based detector to explicitly identify problematic words, and (2) a novel <em>join embedding</em> through which the detector can modify an editors’ hidden states. This paradigm advances an important human-in-the-loop approach to bias understanding and generative language modeling. Second, an easy to train and use but more opaque <span class="smallcaps">concurrent</span> system uses a BERT encoder to identify subjectivity as part of the generation process.</p>
+<p>Large-scale human evaluation suggests that while not without flaws, our algorithms can identify and reduce bias in encyclopedias, news, books, and political speeches, and do so better than state-of-the-art style transfer and machine translation systems. This work represents an important first step towards automatically managing bias in the real world. We release data and code to the public.<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a></p>
+<h1 id="section:corpus">Wiki Neutrality Corpus (WNC)</h1>
+<p>The Wiki Neutrality Corpus consists of aligned sentences <em>pre</em> and <em>post</em>-neutralization by English Wikipedia editors (Table <a href="#tab:samples" data-reference-type="ref" data-reference="tab:samples">[tab:samples]</a>). We used regular expressions to crawl 423,823 Wikipedia revisions between 2004 and 2019 where editors provided NPOV-related justification <span class="citation" data-cites="zanzotto2010expanding recasens2013linguistic yang2017identifying"></span>. To maximize the precision of bias-related changes, we ignored revisions where</p>
+<ul>
+<li><p>More than a single sentence was changed.</p></li>
+<li><p>Minimal edits (character Levenshtein distance <span class="math inline">\(&lt;\)</span> 4).</p></li>
+<li><p>Maximal edits (more than half of the words changed).</p></li>
+<li><p>Edits where more than half of the words were proper nouns.</p></li>
+<li><p>Edits that fixed spelling or grammatical errors.</p></li>
+<li><p>Edits that added references or hyperlinks.</p></li>
+<li><p>Edits that changed non-literary elements like tables or punctuation.</p></li>
+</ul>
+<p>We align sentences in the <em>pre</em> and <em>post</em> text by computing a sliding window (size <span class="math inline">\(k = 5\)</span>) of pairwise BLEU <span class="citation" data-cites="papineni2002bleu"></span> between sentences and matching sentences with the biggest score <span class="citation" data-cites="faruqui2018wikiatomicedits tiedemann2008synchronizing"></span>. Last, we discarded pairs whose length ratios were beyond the 95th percentile <span class="citation" data-cites="pryzant2017jesc"></span>.</p>
+<table>
+<caption>Corpus statistics.<span label="table:corpus-stats"></span></caption>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>Data</strong></td>
+<td style="text-align: left;"><strong>Sentence</strong></td>
+<td style="text-align: left;"><strong>Total</strong></td>
+<td style="text-align: left;"><strong>Seq length</strong></td>
+<td style="text-align: left;"><strong># revised</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"><strong>pairs</strong></td>
+<td style="text-align: left;"><strong>words</strong></td>
+<td style="text-align: left;"><strong>(mean)</strong></td>
+<td style="text-align: left;"><strong>words (mean)</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Biased-full</td>
+<td style="text-align: left;">181,496</td>
+<td style="text-align: left;">10.2M</td>
+<td style="text-align: left;">28.21</td>
+<td style="text-align: left;">4.05</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Biased-word</td>
+<td style="text-align: left;">55,503</td>
+<td style="text-align: left;">2.8M</td>
+<td style="text-align: left;">26.22</td>
+<td style="text-align: left;">1.00</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Neutral</td>
+<td style="text-align: left;">385,639</td>
+<td style="text-align: left;">17.4M</td>
+<td style="text-align: left;">22.58</td>
+<td style="text-align: left;">0.00</td>
+</tr>
+</tbody>
+</table>
+<p>Corpus statistics are given in Table <a href="#table:corpus-stats" data-reference-type="ref" data-reference="table:corpus-stats">[table:corpus-stats]</a>. The final data are (1) a parallel corpus of 180k biased sentences and their neutral counterparts, and (2) 385k neutral sentences that were adjacent to a revised sentence at the time of editing but were not changed by the editor. Note that following <span class="citation" data-cites="recasens2013linguistic"></span> , the neutralizing experiments in Section <a href="#section:experiments" data-reference-type="ref" data-reference="section:experiments">4</a> focus on the subset of WNC where the editor modified or deleted a single word in the source text (“Biased-word” in Table <a href="#table:corpus-stats" data-reference-type="ref" data-reference="table:corpus-stats">[table:corpus-stats]</a>).</p>
+<p>Table <a href="#tab:samples" data-reference-type="ref" data-reference="tab:samples">[tab:samples]</a> also gives a categorization of these sample pairs using a slight extension of the typology of <span class="citation" data-cites="recasens2013linguistic"></span> . They defined <strong>framing bias</strong> as using subjective words or phrases linked with a particular point of view (using words like <em>best</em> or <em>deepest</em> or using <em>pilfered from</em> instead of <em>based on</em>), and <strong>epistemological bias</strong> as linguistic features that subtly (often via presupposition) modify the believability of a proposition. We add to their two a third kind of subjectivity bias that also occurs in our data, which we call <strong>demographic bias</strong>, text with presuppositions about particular genders, races, or other demographic categories (like presupposing that all programmers are male).</p>
+<table>
+<caption>Proportion of bias subcategories in Biased-full.<span label="tab:bias-types"></span></caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"><strong>Subcategory</strong></th>
+<th style="text-align: left;"><strong>Percent</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Epistemological</td>
+<td style="text-align: left;">25.0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Framing</td>
+<td style="text-align: left;">57.7</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Demographic</td>
+<td style="text-align: left;">11.7</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Noise</td>
+<td style="text-align: left;">5.6</td>
+</tr>
+</tbody>
+</table>
+<p>The dataset does not include labels for these categories, but we hand-labeled a random sample of 500 examples to estimate the distribution of the 3 types. Table <a href="#tab:bias-types" data-reference-type="ref" data-reference="tab:bias-types">[tab:bias-types]</a> shows that while framing bias is most common, all types of bias are represented in the data, including instances of demographic bias.</p>
+<h2 id="subsection:properties">Dataset Properties</h2>
+<p>We take a closer look at WNC to identify characteristics of subjective bias on Wikipedia.</p>
+<p><strong>Topic.</strong> We use the Wikimedia Foundation’s categorization models <span class="citation" data-cites="asthana2018few"></span> to bucket articles from WNC into a 44-category ontology,<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a> then compare the proportions of NPOV-driven edits across categories. Subjectively biased edits are most prevalent in <em>history</em>, <em>politics</em>, <em>philosophy</em>, <em>sports</em>, and <em>language</em> categories. They are least prevalent in the <em>meteorology</em>, <em>science</em>, <em>landforms</em>, <em>broadcasting</em>, and <em>arts</em> categories. This suggests that there is a relationship between a text’s topic and the realization of bias. We use this observation to guide our model design in Section <a href="#subsection:tagger" data-reference-type="ref" data-reference="subsection:tagger">[subsection:tagger]</a>.</p>
+<p><strong>Tenure.</strong> We group editors into “newcomers” (less than a month of experience) and “experienced” (more than a month). We find that newcomers are less likely to perform neutralizing edits (15% in WNC) compared to other edits (34% in a random sample of 685k edits). This difference is significant (<span class="math inline">\(\tilde{\chi}^2\)</span> p <span class="math inline">\(=\)</span> 0.001), suggesting the complexity of neutralizing text is typically reserved for more senior editors, which helps explain the performance of human evaluators in Section <a href="#subsubsection:detection" data-reference-type="ref" data-reference="subsubsection:detection">6.1</a>.</p>
+<h1 id="methods-for-neutralizing-text">Methods for Neutralizing Text</h1>
+<p>We propose the task of neutralizing text, in which the algorithm is given an input sentence and must produce an output sentence whose meaning is as similar as possible to the input but with the subjective bias removed.</p>
+<p>We propose two algorithms for this task, each with its own benefits. A <span class="smallcaps">modular</span> algorithm enables human control and interpretability. A <span class="smallcaps">concurrent</span> algorithm is simple to train and operate.</p>
+<p>We adopt the following notation:</p>
+<ul>
+<li><p><span class="math inline">\(\mathbf{s} = [w^s_1, ..., w^s_n]\)</span> is a <em>source sequence</em> of subjectively biased text.</p></li>
+<li><p><span class="math inline">\(\mathbf{t} = [w^t_1, ..., w^t_m]\)</span> is a <em>target sequence</em> and the neutralized version of <span class="math inline">\(\mathbf{s}\)</span>.</p></li>
+</ul>
+<h2 id="modular">MODULAR</h2>
+<p>The first algorithm we are proposing is called <span class="smallcaps">modular</span>. It has two stages: BERT-based detection and LSTM-based editing. We pretrain a model for each stage and then combine them into a joint system for end-to-end fine tuning on the overall neutralizing task. We proceed to describe each module.</p>
+<h3 id="detection-module">Detection Module</h3>
+<p>The detection module is a neural sequence tagger that estimates <span class="math inline">\(p_i\)</span>, the probability that each input word <span class="math inline">\(w^s_i\)</span> is subjectively biased (Figure <a href="#figure:tagger" data-reference-type="ref" data-reference="figure:tagger">2</a>). <span id="subsection:tagger" label="subsection:tagger">[subsection:tagger]</span></p>
+<p><strong>Module description.</strong> Each <span class="math inline">\(p_i\)</span> is calculated according to <span class="math display">\[\begin{aligned}
+    \label{equation:tagger}
+    p_i &amp;= \sigma( \mathbf{b}_i\ \mathbf{W}^{b} + \mathbf{e}_i\ \mathbf{W}^{e} + b)\end{aligned}\]</span></p>
+<ul>
+<li><p><span class="math inline">\(\mathbf{b}_i \in \mathcal{R}^{b}\)</span> represents <span class="math inline">\(w^s_i\)</span>’s semantic meaning. It is a contextualized word vector produced by BERT, a transformer encoder that has been pre-trained as a masked language model <span class="citation" data-cites="devlin2018bert"></span>. To leverage the bias-topic relationship uncovered in Section <a href="#subsection:properties" data-reference-type="ref" data-reference="subsection:properties">2.1</a>, we prepend a token indicating an article’s topic category (<code>&lt;arts&gt;</code>, <code>&lt;sports&gt;</code>, etc) to <span class="math inline">\(\mathbf{s}\)</span>. The word vectors for these tokens are learned from scratch.</p></li>
+<li><p><span class="math inline">\(\mathbf{e}_i\)</span> represents expert features of bias proposed by <span class="citation" data-cites="recasens2013linguistic"></span>: <span class="math display">\[\begin{aligned}
+            \mathbf{e_i} = ReLU(\mathbf{f}_i\ \mathbf{W}^{in})
+        \end{aligned}\]</span> <span class="math inline">\(\mathbf{W}^{in} \in \mathcal{R}^{f \times h}\)</span> is a matrix of learned parameters, and <span class="math inline">\(\mathbf{f}_i\)</span> is a vector of discrete features<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a>.</p></li>
+<li><p><span class="math inline">\(\mathbf{W}^{b} \in \mathcal{R}^{b}\)</span>, <span class="math inline">\(\mathbf{W}^{e} \in \mathcal{R}^{h}\)</span>, and <span class="math inline">\(b \in \mathcal{R}\)</span> are learnable parameters.</p></li>
+</ul>
+<figure>
+<img src="tagger.png" id="figure:tagger" alt="" /><figcaption>The detection module uses discrete features <span class="math inline">\(\mathbf{f}_i\)</span> and BERT embedding <span class="math inline">\(\mathbf{b}_i\)</span> to calculate logit <span class="math inline">\(y_i\)</span>.<span label="figure:tagger"></span></figcaption>
+</figure>
+<p><strong>Module pre-training.</strong> We train this module using diffs<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a> between the source and target text. A label <span class="math inline">\(p^*_i\)</span> is 1 if <span class="math inline">\(w^s_i\)</span> was deleted or modified as part of the neutralizing process. A label is 0 if the associated word was unchanged during editing, i.e. it occurs in both the source and target text. The loss is calculated as the average negative log likelihood of the labels: <span class="math display">\[\begin{aligned}
+   \mathcal{L} = -\ \frac{1}{ n }\sum_{i=1}^n  \Big[ p^*_i \log p_i + (1 - p^*_i) \log (1 - p_i) \Big]\end{aligned}\]</span></p>
+<h3 id="subsection:editor">Editing Module</h3>
+<p>The editing module takes a subjective source sentence <span class="math inline">\(\mathbf{s}\)</span> and is trained to edit it into a more neutral compliment <span class="math inline">\(\mathbf{t}\)</span>.</p>
+<p><strong>Module description.</strong> This module is based on a sequence-to-sequence neural machine translation model <span class="citation" data-cites="luong2015effective"></span>. A bi-LSTM encoder turns <span class="math inline">\(\mathbf{s}\)</span> into a sequence of hidden states <span class="math inline">\(\mathbf{H} = (\mathbf{h}_1, ..., \mathbf{h}_n)\)</span> <span class="citation" data-cites="hochreiter1997long"></span>. Next, an LSTM decoder generates text one token at a time by repeatedly attending to <span class="math inline">\(\mathbf{H}\)</span> and producing probability distributions over the vocabulary. We also add two mechanisms from the summarization literature <span class="citation" data-cites="see2017get"></span>. The first is a copy mechanism, where the model’s final output for timestep <span class="math inline">\(i\)</span> becomes a weighted combination of the predicted vocabulary distribution and attentional distribution from that timestep. The second is a coverage mechanism which incorporates the sum of previous attention distributions into the final loss function to discourage the model from re-attending to a word and repeating itself.</p>
+<p><strong>Module pre-training.</strong> We pre-train the decoder as a language model of neutral text using the <em>neutral</em> portion of WNC (Section <a href="#section:corpus" data-reference-type="ref" data-reference="section:corpus">2</a>). Doing so expresses a data-driven prior about how target sentences should read. We accomplish this with a denoising autoencoder objective <span class="citation" data-cites="hill2016learning"></span> and maximizing the conditional log probability of reconstructing a sequence <span class="math inline">\(\mathbf{x}\)</span> from a <em>corrupted</em> version of itself <span class="math inline">\(\widetilde{\mathbf{x}}\)</span> using noise model <span class="math inline">\(C\)</span> (<span class="math inline">\(\log p(\mathbf{x} \vert \widetilde{\mathbf{x}})\)</span> where <span class="math inline">\(\widetilde{\mathbf{x}} = C(\mathbf{x})\)</span>).</p>
+<p>Our <span class="math inline">\(C\)</span> is similar to <span class="citation" data-cites="lample2018phrase"></span>. We slightly shuffle <span class="math inline">\(\mathbf{x}\)</span> such that <span class="math inline">\(x_i\)</span>’s index in <span class="math inline">\(\widetilde{\mathbf{x}}\)</span> is randomly selected from <span class="math inline">\([i - k, i + k]\)</span>. We then drop words with probability <span class="math inline">\(p\)</span>. For our experiments, we set <span class="math inline">\(k = 3\)</span> and <span class="math inline">\(p = 0.25\)</span>.</p>
+<figure>
+<img src="editor.png" id="figure:editor" alt="" /><figcaption>The <span class="smallcaps">modular</span> system uses <em>join embedding</em> <span class="math inline">\(\mathbf{v}\)</span> to reconcile the detector’s predictions with an encoder-decoder architecture. The greater a word’s probability, the more of <span class="math inline">\(\mathbf{v}\)</span> is mixed into that word’s hidden state.<span label="figure:editor"></span></figcaption>
+</figure>
+<h3 id="subsubsection:modular">Final System</h3>
+<p>Once the detection and editing modules have been pre-trained, we join them and fine-tune together as an end to end system for translating <span class="math inline">\(\mathbf{s}\)</span> into <span class="math inline">\(\mathbf{t}\)</span>.</p>
+<p>This is done with a novel <em>join embedding</em> mechanism that lets the detector control the editor (Figure <a href="#figure:editor" data-reference-type="ref" data-reference="figure:editor">3</a>). The join embedding is a vector <span class="math inline">\(\mathbf{v} \in \mathcal{R}^h\)</span> that we add to each encoder hidden state in the editing module. This operation is gated by the detector’s output probabilities <span class="math inline">\(\mathbf{p} = (p_1, ..., p_n)\)</span>. Note that the same <span class="math inline">\(\mathbf{v}\)</span> is applied across all timesteps. <span class="math display">\[\begin{aligned}
+    \label{eq:join-embedding}
+    \mathbf{h}&#39;_i&amp;= \mathbf{h}_i + p_i \cdot \mathbf{v} \end{aligned}\]</span></p>
+<p>We proceed to condition the decoder on the new hidden states <span class="math inline">\(\mathbf{H}&#39; = (\mathbf{h&#39;}_1, ..., \mathbf{h}&#39;_n)\)</span> which have varying amounts of <span class="math inline">\(\mathbf{v}\)</span> in them. Intuitively, <span class="math inline">\(\mathbf{v}\)</span> is enriching the hidden states of words that the detector identified as subjective. This tells the decoder what language should be changed and what is safe to be be copied during the neutralization process.</p>
+<p>Error signals are allowed to flow backwards into both the encoder and detector, creating an end-to-end system from the two modules. To fine-tune the parameters of the joint system, we use a token-weighted loss function that scales the loss on neutralized words (i.e. words unique to <span class="math inline">\(\mathbf{t}\)</span>) by a factor of <span class="math inline">\(\alpha\)</span>: <span class="math display">\[\begin{aligned}
+    \mathcal{L}(s, t) &amp;= - \sum_{i=1}^m \lambda(w^t_i, s) \log p(w^t_i \vert s, w^t_{&lt;i}) + c \\
+    \lambda(w^t_i, s) &amp;= \left\{
+                \begin{array}{ll}
+                  \alpha\ :\ w^t_i \not \in s\\
+                  1\ :\ \mathrm{otherwise}
+                \end{array}
+        \right.\end{aligned}\]</span> Note that <span class="math inline">\(c\)</span> is a term from the coverage mechanism (Section <a href="#subsection:editor" data-reference-type="ref" data-reference="subsection:editor">3.1.2</a>). We use <span class="math inline">\(\alpha = 1.3\)</span> in our experiments. Intuitively, this loss function incorporates an inductive bias of the neutralizing process: the source and target have a high degree of lexical similarity but the goal is to learn the structure of their <em>differences</em>, not simply copying words into the output (something a pre-trained autoencoder should already have knowledge of). This loss function is related to previous work on grammar correction <span class="citation" data-cites="junczys2018approaching"></span>, and cost-sensitive learning <span class="citation" data-cites="zhou2006training"></span>.</p>
+<h2 id="concurrent">CONCURRENT</h2>
+<p>Our second algorithm takes the problematic source <span class="math inline">\(\textbf{s}\)</span> and directly generates a neutralized <span class="math inline">\(\mathbf{\hat{t}}\)</span>. While this renders the system easier to train and operate, it limits interpretability and controllability.</p>
+<p><strong>Model description</strong>. The <span class="smallcaps">concurrent</span> system is an encoder-decoder neural network. The encoder is BERT. The decoder is the same as that of Section <a href="#subsection:editor" data-reference-type="ref" data-reference="subsection:editor">3.1.2</a>: an attentional LSTM with copy and coverage mechanisms. The decoder’s inputs are set to:</p>
+<ul>
+<li><p>Hidden states <span class="math inline">\(\mathbf{H} = \mathbf{W}^H\ \mathbf{B}\)</span>, where <span class="math inline">\(\mathbf{B} = (\mathbf{b}_1, ..., \mathbf{b}_{n}) \in \mathcal{R}^{b \times n}\)</span> is the BERT-embedded source and <span class="math inline">\(\mathbf{W}^H \in \mathcal{R}^{h \times b}\)</span> is a matrix of learned parameters.</p></li>
+<li><p>Initial states <span class="math inline">\(\mathbf{c}_0 =  \mathbf{W}^{c0}\ \sum \mathbf{b}_i / n\)</span> and <span class="math inline">\(\mathbf{h_0} = \mathbf{W}^{h0}\ \sum \mathbf{b}_i / n\)</span>. <span class="math inline">\(\mathbf{W}^{c0} \in \mathcal{R}^{h \times b}\)</span> and <span class="math inline">\(\mathbf{W}^{h0} \in \mathcal{R}^{h \times b}\)</span> are learned matrices.</p></li>
+</ul>
+<p><strong>Model training</strong>. The <span class="smallcaps">concurrent</span> model is pre-trained with the same autoencoding procedure described in Section <a href="#subsection:editor" data-reference-type="ref" data-reference="subsection:editor">3.1.2</a>. It is then fine-tuned as a subjective-to-neutral translation system with the same loss function described in Section <a href="#subsubsection:modular" data-reference-type="ref" data-reference="subsubsection:modular">3.1.3</a>.</p>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;"><strong>Method</strong></th>
+<th style="text-align: left;"><strong>BLEU</strong></th>
+<th style="text-align: left;"><strong>Accuracy</strong></th>
+<th style="text-align: left;"><strong>Fluency</strong></th>
+<th style="text-align: left;"><strong>Bias</strong></th>
+<th style="text-align: left;"><strong>Meaning</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Source Copy</td>
+<td style="text-align: left;">91.33</td>
+<td style="text-align: left;">0.00</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">-</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Detector (always delete biased word)</td>
+<td style="text-align: left;">92.43*</td>
+<td style="text-align: left;">38.19*</td>
+<td style="text-align: left;">-0.253*</td>
+<td style="text-align: left;">-0.324*</td>
+<td style="text-align: left;">1.108*</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Detector (predict substitution from biased word)</td>
+<td style="text-align: left;">92.51</td>
+<td style="text-align: left;">36.57*</td>
+<td style="text-align: left;">-0.233*</td>
+<td style="text-align: left;">-0.327*</td>
+<td style="text-align: left;">1.139*</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Delete Retrieve (ST) <span class="citation" data-cites="li2018delete"></span></td>
+<td style="text-align: left;">88.46*</td>
+<td style="text-align: left;">14.50*</td>
+<td style="text-align: left;">-0.209*</td>
+<td style="text-align: left;">-0.456*</td>
+<td style="text-align: left;">1.294*</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Back Translation (ST) <span class="citation" data-cites="prabhumoye2018style"></span></td>
+<td style="text-align: left;">84.95*</td>
+<td style="text-align: left;">9.92*</td>
+<td style="text-align: left;">-0.359*</td>
+<td style="text-align: left;">-0.390*</td>
+<td style="text-align: left;">1.126*</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Transformer (MT) <span class="citation" data-cites="vaswani2017attention"></span></td>
+<td style="text-align: left;">86.40*</td>
+<td style="text-align: left;">24.34*</td>
+<td style="text-align: left;">-0.259*</td>
+<td style="text-align: left;">-0.458*</td>
+<td style="text-align: left;">0.905*</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Seq2Seq (MT) <span class="citation" data-cites="luong2015effective"></span></td>
+<td style="text-align: left;">89.03*</td>
+<td style="text-align: left;">23.93</td>
+<td style="text-align: left;">-0.423*</td>
+<td style="text-align: left;">-0.436*</td>
+<td style="text-align: left;">1.294*</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Base</td>
+<td style="text-align: left;">89.13</td>
+<td style="text-align: left;">24.01</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">-</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><em>+ loss</em></td>
+<td style="text-align: left;">90.32*</td>
+<td style="text-align: left;">24.10</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">-</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><em>+ loss + pretrain</em></td>
+<td style="text-align: left;">92.89*</td>
+<td style="text-align: left;">34.76*</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">-</td>
+<td style="text-align: left;">-</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><em>+ loss + pretrain + detector</em> (<span class="smallcaps">modular</span>)</td>
+<td style="text-align: left;">93.52*</td>
+<td style="text-align: left;"><strong>45.80</strong>*</td>
+<td style="text-align: left;">-0.078</td>
+<td style="text-align: left;"><strong>-0.467</strong>*</td>
+<td style="text-align: left;">0.996*</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><em>+ loss + pretrain + BERT</em> (<span class="smallcaps">concurrent</span>)</td>
+<td style="text-align: left;"><strong>93.94</strong></td>
+<td style="text-align: left;">44.87</td>
+<td style="text-align: left;"><strong>0.132</strong></td>
+<td style="text-align: left;">-0.423*</td>
+<td style="text-align: left;"><strong>0.758</strong>*</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Target copy</td>
+<td style="text-align: left;">100.0</td>
+<td style="text-align: left;">100.0</td>
+<td style="text-align: left;">-0.077</td>
+<td style="text-align: left;">-0.551*</td>
+<td style="text-align: left;">1.128*</td>
+</tr>
+</tbody>
+</table>
+<h1 id="section:experiments">Experiments</h1>
+<h2 id="sub:setup">Experimental Protocol</h2>
+<p><strong>Implementation.</strong> We implemented nonlinear models with Pytorch <span class="citation" data-cites="paszke2017automatic"></span> and optimized using Adam <span class="citation" data-cites="kingma2014adam"></span> as configured in <span class="citation" data-cites="devlin2018bert"></span> with a learning rate of 5e-5. We used a batch size of 16. All vectors were of length <span class="math inline">\(h = 512\)</span> unless otherwise specified. We use gradient clipping with a maximum gradient norm of 3 and a dropout probability of 0.2 on the inputs of each LSTM cell <span class="citation" data-cites="srivastava2014dropout"></span>. We initialize the BERT component of the tagging module with the publicly-released <code>bert-base-uncased</code> parameters. All other parameters were uniformly initialized in the range <span class="math inline">\([-0.1,\ 0.1]\)</span>.</p>
+<p><strong>Procedure.</strong> Following <span class="citation" data-cites="recasens2013linguistic"></span> , we train and evaluate our system on a subset of WNC where the editor changed or deleted a single word in the source text. This yielded 53,803 training pairs (about a quarter of the WNC), from which we sampled 700 development and 1,000 test pairs. For fair comparison, we gave our baselines additional access to the 385,639 <em>neutral</em> examples when possible. We pretrained the tagging module for 4 epochs. We pretrained the editing module on the <em>neutral</em> portion of our WNC for 4 epochs. The joint system was trained on the same data as the tagger for 25,000 steps (about 7 epochs). We perform interference using beam search and a beam width of 4. All computations were performed on a single NVIDIA TITAN X GPU; training the full system took approximately 10 hours.</p>
+<p><strong>Evaluation.</strong> We evaluate our models according to five metrics. BLEU <span class="citation" data-cites="papineni2002bleu"></span> and accuracy (the proportion of decodings that exactly matched the editors changes) are quantitative. We report statistical significance with bootstrap resampling and a 95% confidence level <span class="citation" data-cites="koehn2004statistical efron1994introduction"></span>.</p>
+<p>We also hired fluent English-speaking crowdworkers on Amazon Mechanical Turk for qualitative evaluation. Workers were shown the <span class="citation" data-cites="recasens2013linguistic"></span>  and Wikipedia definition of a “biased statement” and six example sentences, then subjected to a five-question qualification test where they had to identify subjectivity bias. Approximately half of the 30,000 workers who took the qualification test passed. Those who passed were asked to compare pairs of original and edited sentences (not knowing which was the original) along three criteria: fluency, meaning preservation, and bias. Fluency and bias were evaluated on a Semantic Differential scale from -2 to 2. Here, a semantic differential scale can better evaluate attitude oriented questions with two polarized options (e.g., “is text A or B more fluent?”). Meaning was evaluated on a Likert scale from 0 to 4, ranging from “identical” to “totally different”. Inter-rater agreement was fair to substantial (Krippendorff’s alpha of 0.65 for fluency, 0.33 for meaning, and 0.51 for bias)<a href="#fn6" class="footnote-ref" id="fnref6" role="doc-noteref"><sup>6</sup></a>. We report statistical significance with a t-test and 95% confidence interval.</p>
+<h2 id="wikipedia-wnc">Wikipedia (WNC)</h2>
+<p>Results on WNC are presented in Table <a href="#tab:editing" data-reference-type="ref" data-reference="tab:editing">[tab:editing]</a>. In addition to methods from the literature we include (1) a BERT-based system which simply predicts and deletes subjective words, and (2) a system which predicts replacements (including deletion) for subjective words directly from their BERT embeddings. All methods appear to successfully reduce bias according to the human evaluators. However, many methods appear to lack fluency. Adding a token-weighted loss function and pretraining the decoder help the model’s coherence according to BLEU and accuracy. Adding the detector (<span class="smallcaps">modular</span>) or a BERT encoder (<span class="smallcaps">concurrent</span>) provide additional benefits. The proposed models retain the strong effects of systems from the literature while also producing target-level fluency on average. Our results suggest there is no clear winner between our two proposed systems. <span class="smallcaps">modular</span> is better at reducing bias and has higher accuracy, while <span class="smallcaps">concurrent</span> produces more fluent responses, preserves meaning better, and has higher BLEU.</p>
+<table>
+<caption>Spearman correlation (<span class="math inline">\(R^2\)</span>) between quantitative and qualitative metrics.<span label="tab:correlations"></span></caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"><strong>Metric</strong></th>
+<th style="text-align: left;"><strong>Fluency</strong></th>
+<th style="text-align: left;"><strong>Bias</strong></th>
+<th style="text-align: left;"><strong>Meaning</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">BLEU</td>
+<td style="text-align: left;">0.65</td>
+<td style="text-align: left;">0.34</td>
+<td style="text-align: left;">0.16</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Accuracy</td>
+<td style="text-align: left;">0.56</td>
+<td style="text-align: left;">0.52</td>
+<td style="text-align: left;">0.20</td>
+</tr>
+</tbody>
+</table>
+<p>Table <a href="#tab:correlations" data-reference-type="ref" data-reference="tab:correlations">[tab:correlations]</a> indicates that BLEU is more correlated with fluency but accuracy is more correlated with subjective bias reduction. The weak association between BLEU and human evaluation scores is corroborated by other research <span class="citation" data-cites="chaganty2018price mir2019evaluating"></span>. We conclude that neither automatic metric is a true substitute for human judgment.</p>
+<h2 id="real-world-media">Real-world Media</h2>
+<p>To demonstrate the efficacy of the proposed methods on subjective bias in the wild, we perform inference on three out-of-domain datasets (Table <a href="#tab:other-results" data-reference-type="ref" data-reference="tab:other-results">[tab:other-results]</a>). We prepared each dataset according to the same procedure as WNC (Section <a href="#section:corpus" data-reference-type="ref" data-reference="section:corpus">2</a>). After inference, we enlisted 1800 raters to assess the quality of 200 randomly sampled datapoints. Note that for partisan datasets we sample an equal number of examples from “conservative” and “liberal” sources. These data are:</p>
+<ul>
+<li><p>The Ideological Books Corpus (IBC) consisting of partisan books and magazine articles <span class="citation" data-cites="sim2013measuring iyyer2014political"></span>.</p></li>
+<li><p>Headlines of partisan news articles identified as biased according to <a href="mediabiasfactcheck.com">mediabiasfactcheck.com</a>.</p></li>
+<li><p>Sentences from the campaign speeches of a prominent politician (United States President Donald Trump).<a href="#fn7" class="footnote-ref" id="fnref7" role="doc-noteref"><sup>7</sup></a> We filtered out dialog-specific artifacts (interjections, phatics, etc) by removing all sentences with less than 4 tokens before sampling a test set.</p></li>
+</ul>
+<p>Overall, while <span class="smallcaps">modular</span> does a better job at reducing bias, <span class="smallcaps">concurrent</span> appears to better preserve the meaning and fluency of the original text. We conclude that the proposed methods, while imperfect, are capable of providing useful suggestions for how subjective bias in real-world news or political text can be reduced.</p>
+<table>
+<caption>Performance on out-of-domain datasets. Higher is preferable for <em>fluency</em>, while lower is preferable for <em>bias</em> and <em>meaning</em>. Rows with asterisks are significantly different from zero<span label="tab:other-results"></span></caption>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Fluency</td>
+<td style="text-align: left;">Bias</td>
+<td style="text-align: left;">Meaning</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">-0.041</td>
+<td style="text-align: left;">-0.509*</td>
+<td style="text-align: left;">0.882*</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">-0.001</td>
+<td style="text-align: left;">-0.184</td>
+<td style="text-align: left;">0.501*</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Fluency</td>
+<td style="text-align: left;">Bias</td>
+<td style="text-align: left;">Meaning</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">-0.46*</td>
+<td style="text-align: left;">-0.511*</td>
+<td style="text-align: left;">1.169*</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">-0.141*</td>
+<td style="text-align: left;">-0.393*</td>
+<td style="text-align: left;">0.752*</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Fluency</td>
+<td style="text-align: left;">Bias</td>
+<td style="text-align: left;">Meaning</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">-0.353*</td>
+<td style="text-align: left;">-0.563*</td>
+<td style="text-align: left;">1.052*</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">-0.117</td>
+<td style="text-align: left;">-0.127</td>
+<td style="text-align: left;">0.757*</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+</tbody>
+</table>
+<h1 id="error-analysis">Error Analysis</h1>
+<p>To better understand the limits of our models and the proposed task of bias neutralization, we randomly sample 50 errors produced by our models on the Wikipedia test set and bin them into the following categories:</p>
+<ul>
+<li><p><strong>No change.</strong> The model failed to remove or change the source sentence.</p></li>
+<li><p><strong>Bad change.</strong> The model modified the source but introduced an edit which failed to match the ground-truth target (i.e. the Wikipedia editor’s change).</p></li>
+<li><p><strong>Disfluency.</strong> Errors in language modeling and text generation.</p></li>
+<li><p><strong>Noise.</strong> The datapoint is noisy and the target text is not a neutralized version of the source.</p></li>
+</ul>
+<table>
+<caption>Distribution of model errors on the Wikipedia test set. We also give the percent of errors that were valid neutralizations of the source despite failing to match the target sentence.<span label="tab:error-prop"></span></caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"><strong>Error Type</strong></th>
+<th style="text-align: left;"><strong>Proportion (%)</strong></th>
+<th style="text-align: left;"><strong>Valid (%)</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">No change</td>
+<td style="text-align: left;">38</td>
+<td style="text-align: left;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Bad change</td>
+<td style="text-align: left;">42</td>
+<td style="text-align: left;">80</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Disfluency</td>
+<td style="text-align: left;">12</td>
+<td style="text-align: left;">0</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Noise</td>
+<td style="text-align: left;">8</td>
+<td style="text-align: left;">87</td>
+</tr>
+</tbody>
+</table>
+<p>The distribution of errors is given in Table <a href="#tab:error-prop" data-reference-type="ref" data-reference="tab:error-prop">[tab:error-prop]</a>. Most errors are due to the subtlety and complexity of language understanding required for bias neutralization, rather than the generation of fluent text. These challenges are particularly pronounced for neutralizing edits that involve the replacement of factive and assertive verbs. As column 2 shows, a large proportion of the errors, though disagreeing with the edit written by the Wikipedia editors, nonetheless succeeded in neutralizing the source.</p>
+<p>Examples of each error type are given in Table <a href="#tab:error-examples" data-reference-type="ref" data-reference="tab:error-examples">[tab:error-examples]</a> (two pages away). As the examples show, our models have have a tendency to simply remove words instead of finding a good replacement.</p>
+<table>
+<caption>Performance of various bias detectors. Rows with asterisks are statistically different than the preceding row.<span label="tab:tagging"></span></caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"><strong>Method</strong></th>
+<th style="text-align: left;"><strong>Accuracy</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Linguistic features</td>
+<td style="text-align: left;">0.395*</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Bag-of-words</td>
+<td style="text-align: left;">0.584*</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><em><span>+Linguistic features</span></em></td>
+<td style="text-align: left;">0.617</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">     (Recasens, 2013)</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">BERT</td>
+<td style="text-align: left;">0.744*</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><em><span> +Linguistic features</span></em></td>
+<td style="text-align: left;">0.752</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><em><span> +Linguistic features + Category</span></em></td>
+<td style="text-align: left;"><strong>0.759</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">       (<span class="smallcaps">modular</span> detector)</td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><span class="smallcaps">concurrent</span> encoder</td>
+<td style="text-align: left;">0.745</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Human</td>
+<td style="text-align: left;">0.543*</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: left;"><strong>Source, Output, then Target</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Existing hot-mail accounts were <strong>upgraded</strong> to outlook.com on April 3, 2013.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Existing hot-mail accounts were <strong>upgraded</strong> to outlook.com on April 3, 2013.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Existing hot-mail accounts were <strong>changed</strong> to outlook.com on April 3, 2013.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">His <strong>exploitation</strong> of leased labor began in 1874 and continued until his death in 1894...</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">His <strong>actions</strong> of leased labor began in 1874 and continued until his death in 1894...</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">His <strong>use</strong> of leased labor began in 1874 and continued until his death in 1894...</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Right before stabbing a cop, flint attacker shouted one thing that <strong>proves</strong> terrorism is still here.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Right before stabbing a cop, flint attacker shouted one thing that <strong>may may</strong> terrorism is still here.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Right before stabbing a cop, flint attacker shouted one thing that <strong>may prove</strong> terrorism is still here.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">...then whent to war with him in the Battle of <strong>Bassorah</strong>, and ultimately left that battle.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">...then whent to war with him in the Battle of <strong>Bassorah</strong>, and ultimately left that battle.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">...then whent to war with him in the Battle of <strong>the Camel</strong>, and ultimately left that battle.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"><strong>Source, Output, then Target</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">After a dominant performance, Joshua...with a <strong>magnificent</strong> seventh-round knockout win.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">After a dominant performance, Joshua...with a seventh-round knockout win.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">After a dominant performance, Joshua...with a seventh-round knockout win.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Jewish history is...interacted with other <strong>dominant</strong> peoples, religions and cultures.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Jewish history is...other peoples, religions and cultures.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Jewish history is...other peoples, religions and cultures.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"><strong>Output</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">In recent years, the term has often been <strong>misapplied</strong> to those who are <strong>merely</strong> clean-cut.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">In recent years, the term has often been <strong>misapplied</strong> to those who are clean-cut.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">In recent years, the term has often been <em>shown</em> to those who are <strong>merely</strong> clean-cut.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">He was responsible for the <strong>assassination</strong> of Carlos Marighella, and for the Lapa <strong>massacre</strong>.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">He was responsible for the <em>killing</em> of Carlos Marighella, and for the Lapa <strong>massacre</strong>.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">He was responsible for the assassination of Carlos Marighella, and for the Lapa <em>incident</em>.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Paul Ryan <strong>desperately</strong> searches for a new focus amid Russia <strong>scandal</strong>.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Paul Ryan searches for a new focus amid Russia <strong>scandal</strong>.</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: left;">Paul Ryan <strong>desperately</strong> searches for a new focus amid Russia.</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+</tbody>
+</table>
+<h1 id="algorithmic-analysis">Algorithmic Analysis</h1>
+<p>We proceed to analyze our algorithm’s ability to detect and categorize bias as well as the efficacy of the proposed join embedding.</p>
+<h2 id="subsubsection:detection">Detecting Subjectivity</h2>
+<p>Identifying subjectivity in a sentence (explicitly or implicitly) is prerequisite to neutralizing it. We accordingly evaluate our model’s (and 3,000 crowdworker’s) ability to detect subjectivity using the procedure of <span class="citation" data-cites="recasens2013linguistic"></span> . We use the same 50k training examples as Section <a href="#section:experiments" data-reference-type="ref" data-reference="section:experiments">4</a> (Table <a href="#tab:tagging" data-reference-type="ref" data-reference="tab:tagging">[tab:tagging]</a>). For each sentence, we select the word with the highest predicted probability and test whether that word was in fact changed by the editor. The proportion of correctly selected words is the system’s “accuracy”. Results are given in Table <a href="#tab:tagging" data-reference-type="ref" data-reference="tab:tagging">[tab:tagging]</a>.</p>
+<p>Note that <span class="smallcaps">concurrent</span> lacks an interpretive window into its detection behavior, so we estimate an upper bound on the model’s detection abilities by (1) feeding the encoder’s hidden states into a fully connected + softmax layer that predicts the probability of a token being subjectively biased, and (2) training this layer as a sequence tagger according to the procedure of Section <a href="#subsection:tagger" data-reference-type="ref" data-reference="subsection:tagger">[subsection:tagger]</a>.</p>
+<p>The low human performance can be attributed to the difficulty of identifying bias. Issues of bias are typically reserved for senior Wikipedia editors (Section <a href="#subsection:properties" data-reference-type="ref" data-reference="subsection:properties">2.1</a>) and untrained workers performed worse (37.39%) on the same task in <span class="citation" data-cites="recasens2013linguistic"></span> (and can struggle on other tasks requiring linguistic knowledge <span class="citation" data-cites="callison2009fast"></span>). <span class="smallcaps">concurrent</span>’s encoder, which is architecturally identical to BERT, had similar performance to a stand-alone BERT system. The linguistic and category-related features in the <span class="smallcaps">modular</span> detector gave it slight leverage over the plain BERT-based models.</p>
+<h2 id="join-embedding">Join Embedding</h2>
+<p>We continue by analyzing the abilities of the proposed join embedding mechanism.</p>
+<h3 id="join-embedding-ablation">Join Embedding Ablation</h3>
+<p>The join embedding combines two separately pretrained models through a gated embedding instead of the more traditional practice of stripping off any final classification layers and concatenating the exposed hidden states <span class="citation" data-cites="bengio2007greedy"></span>. We ablated the join embedding mechanism by training a new model where the pre-trained detector is frozen and its pre-output hidden states <span class="math inline">\(\mathbf{b}_i\)</span> are concatenated to the encoder’s hidden states before decoding. Doing so reduced performance to 90.78 BLEU and 37.57 Accuracy (from the 93.52/46.8 with the join embedding). This suggests learned embeddings can be a high-performance and end-to-end conduit between sub-modules of machine learning systems.</p>
+<h3 id="join-embedding-control">Join Embedding Control</h3>
+<p>We proceed to demonstrate how the join embedding creates controllability in the neutralization process. Recall that <span class="smallcaps">modular</span> relies on a probability distribution <span class="math inline">\(\mathbf{p}\)</span> to determine which words require editing (Equation <a href="#eq:join-embedding" data-reference-type="ref" data-reference="eq:join-embedding">[eq:join-embedding]</a>). Typically, this distribution comes from the detection module (Section <a href="#subsection:tagger" data-reference-type="ref" data-reference="subsection:tagger">[subsection:tagger]</a>), but we can also feed in user-specified distributions that force the model to target particular words. This can let human advisors correct errors or push the model’s behavior towards some desired outcome. We find that the model is indeed capable of being controlled, letting users target specific words for rewording in case they disagree with the model’s output or seek recommendations on specific language. However, doing so can also introduce errors into downstream language generation (Table <a href="#tab:error-examples" data-reference-type="ref" data-reference="tab:error-examples">[tab:error-examples]</a>, next page).</p>
+<h1 id="related-work">Related Work</h1>
+<p><strong>Subjectivity Bias.</strong> The study of subjectivity in NLP was pioneered by the late Janyce Wiebe and colleagues <span class="citation" data-cites="bruce1999recognizing hatzivassiloglou2000effects"></span>. Several studies develop methods for highlighting subjective or persuasive frames in a text <span class="citation" data-cites="rashkin2017truth tsur2015frame"></span>, or detecting biased sentences <span class="citation" data-cites="hube2018detecting morstatter2018identifying yang2017identifying hube2019neural"></span> of which the most similar to ours is <span class="citation" data-cites="recasens2013linguistic"></span> , whose early, smaller version of WNC and logistic regression-based bias detector inspired our study.</p>
+<p><strong>Debiasing.</strong> Many scholars have worked on removing demographic prejudice from <em>meaning representations</em> <span class="citation" data-cites="manzini2019black zhao2017men zhao2018gender bordia2019identifying wang2018adversarial"></span>. Such studies begin with identifying a direction or subspace that capture the bias and then removing this bias component to make representations fair across attributes like gender and age <span class="citation" data-cites="bolukbasi2016man manzini2019black"></span>. For instance, <span class="citation" data-cites="bordia2019identifying"></span>  introduced a regularization term for the language model to penalize the projection of the word embeddings onto that gender subspace, while <span class="citation" data-cites="wang2018adversarial"></span>  used adversarial training to squeeze directions of bias out of hidden states.</p>
+<p><strong>Neural Language Generation.</strong> Several studies propose stepwise or modular procedures for text generation, including sampling from a corpus <span class="citation" data-cites="guu2018generating"></span> and identifying language ripe for modification <span class="citation" data-cites="leeftink2019towards"></span>. Most similar to us is <span class="citation" data-cites="li2018delete"></span>  who localize a text’s style to a fraction of its words. Our <span class="smallcaps">modular</span> detection module performs a similar localization in a soft manner, but our steps are joined by a smooth conduit (the join embedding) instead of discrete logic. There is also work related to our <span class="smallcaps">concurrent</span> model. The closest is <span class="citation" data-cites="dunextending"></span> , where a decoder was attached to BERT for question answering, or <span class="citation" data-cites="lample2018phrase"></span> , where machine translation systems are initialized to LSTM and Transformer-based language models of the source text.</p>
+<h1 id="conclusion-and-future-work">Conclusion and Future Work</h1>
+<p>The growing presence of bias has marred the credibility of our news, educational systems, and social media platforms. Automatically reducing bias is thus an important new challenge for the Natural Language Processing and Artificial Intelligence community. This work represents a first step in the space. Our results suggest that the proposed models are capable of providing useful suggestions for how to reduce subjective bias in real-world expository writing like news, books, and encyclopedias. Nonetheless our scope was limited to single-word edits, which only constitute a quarter of the edits in our data, and are probably among the simplest instances of bias. We therefore encourage future work to tackle broader instances of multi-word, multi-lingual, and cross-sentence bias. Another important direction is integrating aspects of fact-checking <span class="citation" data-cites="mihaylova2018fact"></span>, since a more sophisticated system would be able to know when a presupposition is in fact true and hence not subjective. Finally, our new join embedding mechanism can be applied to other modular neural network architectures.</p>
+<h1 id="acknowledgements">Acknowledgements</h1>
+<p>We thank the Japan-United States Educational Commission (Fulbright Japan) for their generous support. We thank Chris Potts, Hirokazu Kiyomaru, Abigail See, Kevin Clark, the Stanford NLP Group, and our anonymous reviewers for their thoughtful comments and suggestions. We gratefully acknowledge support of the DARPA Communicating with Computers (CwC) program under ARO prime contract no. W911NF15-1-0462 and the NSF via grant IIS-1514268. Diyi Yang is thankful for support by a grant from Google.</p>
+<section class="footnotes" role="doc-endnotes">
+<hr />
+<ol>
+<li id="fn1" role="doc-endnote"><p><a href="https://en.wikipedia.org/wiki/Wikipedia:Neutral_point_of_view">https://en.wikipedia.org/wiki/Wikipedia:Neutral_point_of_view</a><a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2" role="doc-endnote"><p><a href="https://github.com/rpryzant/neutralizing-bias">https://github.com/rpryzant/neutralizing-bias</a><a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3" role="doc-endnote"><p><a href="https://en.wikipedia.org/wiki/Wikipedia:WikiProject_Council/Directory">https://en.wikipedia.org/wiki/Wikipedia:WikiProject_Council/Directory</a><a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn4" role="doc-endnote"><p>Such as lexicons of hedges, factives, assertives, implicatives, and subjective words; see code release.<a href="#fnref4" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn5" role="doc-endnote"><p><a href="https://github.com/paulgb/simplediff">https://github.com/paulgb/simplediff</a><a href="#fnref5" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn6" role="doc-endnote"><p> Rule of thumb: k <span class="math inline">\(&lt;\)</span> 0 “poor” agreement, 0 to .2 “slight”, .21 to .40 “fair”, .41 to .60 “moderate”, .61 - .80 “substantial”, and .81 to 1 “near perfect” <span class="citation" data-cites="gwet2011krippendorff"></span>.<a href="#fnref6" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn7" role="doc-endnote"><p>Transcripts from <a href="www.kaggle.com/binksbiz/mrtrump">www.kaggle.com/binksbiz/mrtrump</a><a href="#fnref7" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+    </article>
+  </main>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</body>
+
+</html>

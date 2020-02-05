@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <link rel="stylesheet" href="/css/site.css" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+
+  <meta charset="utf-8" />
+  <title>Adapting Sequence Models for Sentence Correction</title>
+</head>
+
+<body>
+  <main>
+    <header>
+      <h1>Adapting Sequence Models for Sentence Correction</h1>
+      [<a href="/">Index</a>]
+    </header>
+    <article class="column content">
+      <!-- Must be unindented to prevent code indentation being broken -->
+<h1 id="introduction">Introduction</h1>
+<p>The task of <em>sentence correction</em> is to convert a natural language sentence that may or may not have errors into a corrected version. The task is envisioned as a component of a learning tool or writing-assistant, and has seen increased interest since 2011 driven by a series of shared tasks <span class="citation" data-cites="DaleAndKilgarriff-2011-HOOPilot DaleEtAl-2012-HOO2012PrepAndDetErrors NgEtAl-2013-CoNLL-SharedTask2013 NgEtAl-2014-SharedTask2014"></span>.</p>
+<p>Most recent work on language correction has focused on the data provided by the CoNLL-2014 shared task <span class="citation" data-cites="NgEtAl-2014-SharedTask2014"></span>, a set of corrected essays by second-language learners. The CoNLL-2014 data consists of only around 60,000 sentences, and as such, competitive systems have made use of large amounts of corrected text without annotations, and in some cases lower-quality crowd-annotated data, in addition to the shared data. In this data environment, it has been suggested that statistical phrase-based machine translation (MT) with task-specific features is the state-of-the-art for the task <span class="citation" data-cites="junczysdowmunt-grundkiewicz:2016:EMNLP2016"></span>, outperforming word- and character-based sequence-to-sequence models <span class="citation" data-cites="yuan-briscoe:2016:N16-1 XieEtAl.2016-arxiv-NLCwithCharAttention JiEtal2017arXiv-NestedAttention"></span>, phrase-based systems with neural features <span class="citation" data-cites="ChollampattElAl-2016-SMTwithNNfeatures chollampatt-hoang-ng:2016:EMNLP2016"></span>, re-ranking output from phrase-based systems <span class="citation" data-cites="HoangEtAl2016-IJCAI-NbestSMTReranking"></span>, and combining phrase-based systems with classifiers trained for hand-picked subsets of errors <span class="citation" data-cites="rozovskaya-roth:2016:P16-1"></span>.</p>
+<p>We revisit the comparison across translation approaches for the correction task in light of the Automated Evaluation of Scientific Writing (AESW) 2016 dataset, a correction dataset containing over 1 million sentences, holding constant the training data across approaches. The dataset was previously proposed for the distinct binary classification task of grammatical error identification.</p>
+<p>Experiments demonstrate that pure character-level sequence-to-sequence models are more effective on AESW than word-based models and models that encode subword information via convolutions over characters, and that representing the output data as a series of <em>diffs</em> significantly increases effectiveness on this task. Our strongest character-level model achieves statistically significant improvements over our strongest phrase-based statistical machine translation model by 6 <span class="math inline">\(M^2\)</span> (0.5 GLEU) points, with additional gains when including domain information. Furthermore, in the partially crowd-sourced data environment of the standard CoNLL-2014 setup in which there are comparatively few professionally annotated sentences, we find that tuning against the tags marking the diffs yields similar or superior effectiveness relative to existing sequence-to-sequence approaches despite using significantly less data, with or without using secondary models. All code is available at <a href="https://github.com/allenschmaltz/grammar">https://github.com/allenschmaltz/grammar</a>.</p>
+<h1 id="background-and-methods">Background and Methods</h1>
+<h4 id="task">Task</h4>
+<p>We follow recent work and treat the task of sentence correction as translation from a source sentence (the unedited sentence) into a target sentence (a corrected version in the same language as the source). We do not make a distinction between grammatical and stylistic corrections.</p>
+<p>We assume a vocabulary <span class="math inline">\(\mathcal{V}\)</span> of natural language word types (some of which have orthographic errors). Given a sentence <span class="math inline">\(\mathbf{s} = [s_1 \cdots s_I]\)</span>, where <span class="math inline">\(s_i \in \mathcal{V}\)</span> is the <span class="math inline">\(i\)</span>-th token of the sentence of length <span class="math inline">\(I\)</span>, we seek to predict the corrected target sentence <span class="math inline">\(\mathbf{t} = [t_1 \cdots t_J]\)</span>, where <span class="math inline">\(t_j \in \mathcal{V}\)</span> is the <span class="math inline">\(j\)</span>-th token of the corrected sentence of length <span class="math inline">\(J\)</span>. We are given both <span class="math inline">\(\mathbf{s}\)</span> and <span class="math inline">\(\mathbf{t}\)</span> for supervised training in the standard setup. At test time, we are only given access to sequence <span class="math inline">\(\mathbf{s}\)</span>. We learn to predict sequence <span class="math inline">\(\mathbf{t}\)</span> (which is often identical to <span class="math inline">\(\mathbf{s}\)</span>).</p>
+<h4 id="sequence-to-sequence">Sequence-to-sequence</h4>
+<p>We explore word and character variants of the sequence-to-sequence framework. We use a standard word-based model (<span class="smallcaps">Word</span>), similar to that of , as well as a model that uses a convolutional neural network (CNN) and a highway network over characters (<span class="smallcaps">CharCNN</span>), based on the work of , instead of word embeddings as the input to the encoder and decoder. With both of these models, predictions are made at the word level. We also consider the use of bidirectional versions of these encoders (<span class="smallcaps">+Bi</span>).</p>
+<p>Our character-based model (<span class="smallcaps">Char+Bi</span>) follows the architecture of the <span class="smallcaps">Word+Bi</span> model, but the input and output consist of characters rather than words. In this case, the input and output sequences are converted to a series of characters and whitespace delimiters. The output sequence is converted back to <span class="math inline">\(\mathbf{t}\)</span> prior to evaluation.</p>
+<p>The <span class="smallcaps">Word</span> models encode and decode over a closed vocabulary (of the 50k most frequent words); the <span class="smallcaps">CharCNN</span> models encode over an open vocabulary and decode over a closed vocabulary; and the <span class="smallcaps">Char</span> models encode and decode over an open vocabulary.</p>
+<p>Our contribution is to investigate the impact of sequence-to-sequence approaches (including those not considered in previous work) in a series of controlled experiments, holding the data constant. In doing so, we demonstrate that on a large, professionally annotated dataset, the most effective sequence-to-sequence approach can significantly outperform a state-of-the-art SMT system without augmenting the sequence-to-sequence model with a secondary model to handle low-frequency words <span class="citation" data-cites="yuan-briscoe:2016:N16-1"></span> or an additional model to improve precision or intersecting a large language model <span class="citation" data-cites="XieEtAl.2016-arxiv-NLCwithCharAttention"></span>. We also demonstrate improvements over these previous sequence-to-sequence approaches on the CoNLL-2014 data and competitive results with , despite using significantly less data.</p>
+<p>The work of applies <span class="smallcaps">Word</span> and <span class="smallcaps">CharCNN</span> models to the distinct binary classification task of error identification.</p>
+<h4 id="additional-approaches">Additional Approaches</h4>
+<p>The standard formulation of the correction task is to model the output sequence as <span class="math inline">\(\mathbf{t}\)</span> above. Here, we also propose modeling the diffs between <span class="math inline">\(\mathbf{s}\)</span> and <span class="math inline">\(\mathbf{t}\)</span>. The diffs are provided in-line within <span class="math inline">\(\mathbf{t}\)</span> and are described via tags marking the starts and ends of insertions and deletions, with replacements represented as deletion-insertion pairs, as in the following example selected from the training set: “Some key points are worth &lt;del&gt; emphasiz  &lt;/del&gt; &lt;ins&gt; emphasizing &lt;/ins&gt; .”. Here, “emphasiz” is replaced with “emphasizing”. The models, including the <span class="smallcaps">Char</span> model, treat each tag as a single, atomic token.</p>
+<p>The diffs enable a means of tuning the model’s propensity to generate corrections by modifying the probabilities generated by the decoder for the 4 diff tags, which we examine with the CoNLL data. We include four bias parameters associated with each diff tag, and run a grid search between 0 and 1.0 to set their values based on the tuning set.</p>
+<p>It is possible for models with diffs to output invalid target sequences (for example, inserting a word without using a diff tag). To fix this, a deterministic post-processing step is performed (greedily from left to right) that returns to source any non-source tokens outside of insertion tags. Diffs are removed prior to evaluation. We indicate models that <em>do not</em> incorporate target diff annotation tags with the designator <span class="smallcaps"><strong>–</strong>diffs</span>.</p>
+<p>The AESW dataset provides the paragraph context and a journal domain (a classification of the document into one of nine subject categories) for each sentence.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> For the sequence-to-sequence models we propose modeling the input and output sequences with a special initial token representing the journal domain (<span class="smallcaps">+dom</span>).<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a></p>
+<table>
+<caption><span>AESW development/test set correction results. GLEU and <span class="math inline">\(M^2\)</span> differences on test are statistically significant via paired bootstrap resampling <span class="citation" data-cites="koehn:2004:EMNLP graham-mathur-baldwin:2014:W14-33"></span> at the 0.05 level, resampling the full set 50 times.</span><span label="table:dev-results"></span></caption>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Model</td>
+<td style="text-align: center;">Dev</td>
+<td style="text-align: center;">Test</td>
+<td style="text-align: center;">Dev</td>
+<td style="text-align: center;">Test</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">No Change</td>
+<td style="text-align: center;">89.68</td>
+<td style="text-align: center;">89.45</td>
+<td style="text-align: center;">00.00</td>
+<td style="text-align: center;">00.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><span class="smallcaps">SMT<strong>–</strong>diffs+<span class="math inline">\(M^2\)</span></span></td>
+<td style="text-align: center;">90.44</td>
+<td style="text-align: center;"><span class="math inline">\(-\)</span></td>
+<td style="text-align: center;">38.55</td>
+<td style="text-align: center;"><span class="math inline">\(-\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><span class="smallcaps">SMT<strong>–</strong>diffs+BLEU</span></td>
+<td style="text-align: center;">90.90</td>
+<td style="text-align: center;"><span class="math inline">\(-\)</span></td>
+<td style="text-align: center;">37.66</td>
+<td style="text-align: center;"><span class="math inline">\(-\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><span class="smallcaps">Word+Bi<strong>–</strong>diffs</span></td>
+<td style="text-align: center;">91.18</td>
+<td style="text-align: center;"><span class="math inline">\(-\)</span></td>
+<td style="text-align: center;">38.88</td>
+<td style="text-align: center;"><span class="math inline">\(-\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><span class="smallcaps">Char+Bi<strong>–</strong>diffs</span></td>
+<td style="text-align: center;">91.28</td>
+<td style="text-align: center;"><span class="math inline">\(-\)</span></td>
+<td style="text-align: center;">40.11</td>
+<td style="text-align: center;"><span class="math inline">\(-\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><span class="smallcaps">SMT+BLEU</span></td>
+<td style="text-align: center;">90.95</td>
+<td style="text-align: center;">90.70</td>
+<td style="text-align: center;">38.99</td>
+<td style="text-align: center;">38.31</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><span class="smallcaps">Word+Bi</span></td>
+<td style="text-align: center;">91.34</td>
+<td style="text-align: center;">91.05</td>
+<td style="text-align: center;">43.61</td>
+<td style="text-align: center;">42.78</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><span class="smallcaps">CharCNN</span></td>
+<td style="text-align: center;">91.23</td>
+<td style="text-align: center;">90.96</td>
+<td style="text-align: center;">42.02</td>
+<td style="text-align: center;">41.21</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><span class="smallcaps">Char+Bi</span></td>
+<td style="text-align: center;"><strong>91.46</strong></td>
+<td style="text-align: center;"><strong>91.22</strong></td>
+<td style="text-align: center;"><strong>44.67</strong></td>
+<td style="text-align: center;"><strong>44.62</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><span class="smallcaps">Word+dom</span></td>
+<td style="text-align: center;">91.25</td>
+<td style="text-align: center;"><span class="math inline">\(-\)</span></td>
+<td style="text-align: center;">43.12</td>
+<td style="text-align: center;"><span class="math inline">\(-\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><span class="smallcaps">Word+Bi+dom</span></td>
+<td style="text-align: center;">91.45</td>
+<td style="text-align: center;"><span class="math inline">\(-\)</span></td>
+<td style="text-align: center;">44.33</td>
+<td style="text-align: center;"><span class="math inline">\(-\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><span class="smallcaps">CharCNN+Bi+dom</span></td>
+<td style="text-align: center;">91.15</td>
+<td style="text-align: center;"><span class="math inline">\(-\)</span></td>
+<td style="text-align: center;">40.79</td>
+<td style="text-align: center;"><span class="math inline">\(-\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><span class="smallcaps">CharCNN+dom</span></td>
+<td style="text-align: center;">91.35</td>
+<td style="text-align: center;"><span class="math inline">\(-\)</span></td>
+<td style="text-align: center;">43.94</td>
+<td style="text-align: center;"><span class="math inline">\(-\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><span class="smallcaps">Char+Bi+dom</span></td>
+<td style="text-align: center;"><strong>91.64</strong></td>
+<td style="text-align: center;"><strong>91.39</strong></td>
+<td style="text-align: center;"><strong>47.25</strong></td>
+<td style="text-align: center;"><strong>46.72</strong></td>
+</tr>
+</tbody>
+</table>
+<h1 id="sec:experiments">Experiments</h1>
+<h4 id="data">Data</h4>
+<p>AESW <span class="citation" data-cites="Daudaravicius2016-dataset daudaravicius-EtAl:2016:BEA11"></span> consists of sentences taken from academic articles annotated with corrections by professional editors used for the AESW shared task. The training set contains 1,182,491 sentences, of which 460,901 sentences have edits. We set aside a 9,947 sentence sample from the original development set for tuning (of which 3,797 contain edits), and use the remaining 137,446 sentences as the dev set<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a> (of which 53,502 contain edits). The test set contains 146,478 sentences.</p>
+<p>The primary focus of the present study is conducting controlled experiments on the AESW dataset, but we also investigate results on the CoNLL-2014 shared task data in light of recent neural results <span class="citation" data-cites="JiEtal2017arXiv-NestedAttention"></span> and to serve as a baseline of comparison against existing sequence-to-sequence approaches <span class="citation" data-cites="yuan-briscoe:2016:N16-1 XieEtAl.2016-arxiv-NLCwithCharAttention"></span>. We use the common sets of public data appearing in past work for training: the National University of Singapore (NUS) Corpus of Learner English (NUCLE) <span class="citation" data-cites="dahlmeier-ng-wu:2013:BEA8"></span> and the publicly available Lang-8 data <span class="citation" data-cites="tajiri-komachi-matsumoto:2012:ACL2012short mizumoto-EtAl:2012:POSTERS"></span>. The Lang-8 dataset of corrections is large<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a> but is crowd-sourced<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a> and is thus of a different nature than the professionally annotated AESW and NUCLE datasets. We use the revised CoNLL-2013 test set as a tuning/dev set and the CoNLL-2014 test set (without alternatives) for testing. We do not make use of the non-public Cambridge Learner Corpus (CLC) <span class="citation" data-cites="Nicholls2003-CLC"></span>, which contains over 1.5 million sentence pairs.</p>
+<h4 id="evaluation">Evaluation</h4>
+<p>We follow past work and use the Generalized Language Understanding Evaluation (GLEU) <span class="citation" data-cites="napoles2016gleu"></span> and MaxMatch (<span class="math inline">\(M^2\)</span>) metrics <span class="citation" data-cites="DahlmeierEtAl2012-M2"></span>.</p>
+<h4 id="parameters">Parameters</h4>
+<p>All our models, implemented with OpenNMT <span class="citation" data-cites="2017opennmt"></span>, are <span class="math inline">\(2\)</span>-layer LSTMs with <span class="math inline">\(750\)</span> hidden units. For the <span class="smallcaps">Word</span> model, the word embedding size is also set to <span class="math inline">\(750\)</span>, while for the <span class="smallcaps">CharCNN</span> and <span class="smallcaps">Char</span> models we use a character embedding size of <span class="math inline">\(25\)</span>. The <span class="smallcaps">CharCNN</span> model has a convolutional layer with <span class="math inline">\(1000\)</span> filters of width <span class="math inline">\(6\)</span> followed by max-pooling, which is fed into a <span class="math inline">\(2\)</span>-layer highway network. Additional training details are provided in Appendix A. For AESW, the <span class="smallcaps">Word+Bi</span> model contains around 144 million parameters, the <span class="smallcaps">CharCNN+Bi</span> model around 79 million parameters, and the <span class="smallcaps">Char+Bi</span> model around 25 million parameters.</p>
+<h4 id="statistical-machine-translation">Statistical Machine Translation</h4>
+<p>As a baseline of comparison, we experiment with a phrase-based machine translation approach (<span class="smallcaps">SMT</span>) shown to be state-of-the-art for the CoNLL-2014 shared task data in previous work <span class="citation" data-cites="junczysdowmunt-grundkiewicz:2016:EMNLP2016"></span>, which adds task specific features and the <span class="math inline">\(M^2\)</span> metric as a scorer to the Moses statistical machine translation system. The <span class="smallcaps">SMT</span> model follows the training, parameters, and dense and sparse task-specific features that generate state-of-the-art results for CoNLL-2014 shared task data, as implemented in publicly available code.<a href="#fn6" class="footnote-ref" id="fnref6" role="doc-noteref"><sup>6</sup></a> However, to compare models against the same training data, we remove language model features associated with external data.<a href="#fn7" class="footnote-ref" id="fnref7" role="doc-noteref"><sup>7</sup></a> We experiment with tuning against <span class="math inline">\(M^2\)</span> (<span class="smallcaps">+<span class="math inline">\(M^2\)</span></span>) and BLEU (<span class="smallcaps">+BLEU</span>). Models trained with diffs were only tuned with BLEU, since the tuning pipeline from previous work is not designed to handle removing such annotation tags prior to <span class="math inline">\(M^2\)</span> scoring.</p>
+<h1 id="results-and-analysis-aesw">Results and Analysis: AESW</h1>
+<table>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Model</td>
+<td style="text-align: center;">Punctuation</td>
+<td style="text-align: center;">Articles</td>
+<td style="text-align: center;">Other</td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"></td>
+<td style="text-align: center;"><span class="math inline">\(&gt;100\)</span></td>
+<td style="text-align: center;"><span class="math inline">\([5,100]\)</span></td>
+<td style="text-align: center;"><span class="math inline">\([2,5)\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(1\)</span></td>
+<td style="text-align: center;"><span class="math inline">\(0\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Raw frequency in dev</td>
+<td style="text-align: center;">11507</td>
+<td style="text-align: center;">1691</td>
+<td style="text-align: center;">6788</td>
+<td style="text-align: center;">8974</td>
+<td style="text-align: center;">2271</td>
+<td style="text-align: center;">1620</td>
+<td style="text-align: center;">7079</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Number of unique instances</td>
+<td style="text-align: center;">371</td>
+<td style="text-align: center;">367</td>
+<td style="text-align: center;">215</td>
+<td style="text-align: center;">2918</td>
+<td style="text-align: center;">1510</td>
+<td style="text-align: center;">1242</td>
+<td style="text-align: center;">5819</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><span class="smallcaps">SMT+BLEU</span></td>
+<td style="text-align: center;">56.03</td>
+<td style="text-align: center;">16.41</td>
+<td style="text-align: center;">44.57</td>
+<td style="text-align: center;">36.17</td>
+<td style="text-align: center;">39.46</td>
+<td style="text-align: center;">31.93</td>
+<td style="text-align: center;">0.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><span class="smallcaps">Word+Bi</span></td>
+<td style="text-align: center;">56.13</td>
+<td style="text-align: center;">18.58</td>
+<td style="text-align: center;">55.38</td>
+<td style="text-align: center;">44.33</td>
+<td style="text-align: center;">18.79</td>
+<td style="text-align: center;">6.38</td>
+<td style="text-align: center;">0.77</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><span class="smallcaps">Word+Bi+dom</span></td>
+<td style="text-align: center;">56.87</td>
+<td style="text-align: center;">19.16</td>
+<td style="text-align: center;">59.02</td>
+<td style="text-align: center;">44.57</td>
+<td style="text-align: center;">19.70</td>
+<td style="text-align: center;">4.42</td>
+<td style="text-align: center;">2.01</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><span class="smallcaps">CharCNN+dom</span></td>
+<td style="text-align: center;">55.64</td>
+<td style="text-align: center;">13.37</td>
+<td style="text-align: center;">57.34</td>
+<td style="text-align: center;">41.83</td>
+<td style="text-align: center;">28.99</td>
+<td style="text-align: center;">16.74</td>
+<td style="text-align: center;">7.09</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><span class="smallcaps">Char+Bi</span></td>
+<td style="text-align: center;">58.71</td>
+<td style="text-align: center;">28.40</td>
+<td style="text-align: center;">55.34</td>
+<td style="text-align: center;">44.59</td>
+<td style="text-align: center;">28.98</td>
+<td style="text-align: center;">24.48</td>
+<td style="text-align: center;">14.14</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><span class="smallcaps">Char+Bi+dom</span></td>
+<td style="text-align: center;">58.93</td>
+<td style="text-align: center;">27.64</td>
+<td style="text-align: center;">59.32</td>
+<td style="text-align: center;">46.08</td>
+<td style="text-align: center;">32.82</td>
+<td style="text-align: center;">26.48</td>
+<td style="text-align: center;">18.66</td>
+</tr>
+</tbody>
+</table>
+<p><span>p<span>22mm</span>P<span>10mm</span>P<span>10mm</span>P<span>18mm</span></span> &amp; Deletions &amp; Insertions &amp; Replacements<br />
+<span class="smallcaps">SMT+BLEU</span> &amp; 46.56 &amp; 31.48 &amp; 42.21<br />
+<span class="smallcaps">Word+Bi</span> &amp; 47.75 &amp; 38.31 &amp; 46.02<br />
+<span class="smallcaps">Word+Bi+dom</span> &amp; 47.78 &amp; 39.00 &amp; 47.29<br />
+<span class="smallcaps">CharCNN+dom</span> &amp; 48.30 &amp; 39.57 &amp; 46.24<br />
+<span class="smallcaps">Char+Bi</span> &amp; 49.05 &amp; 37.17 &amp; 48.55<br />
+<span class="smallcaps">Char+Bi+dom</span> &amp; 50.20 &amp; 42.51 &amp; 50.39<br />
+</p>
+<p>Table 1 shows the full set of experimental results on the AESW development and test data.</p>
+<p>The <span class="smallcaps">Char+Bi+dom</span> model is stronger than the <span class="smallcaps">Word+Bi+dom</span> and <span class="smallcaps">CharCNN+dom</span> models by 2.9 <span class="math inline">\(M^2\)</span> (0.2 GLEU) and 3.3 <span class="math inline">\(M^2\)</span> (0.3 GLEU), respectively. The sequence-to-sequence models were also more effective than the <span class="smallcaps">SMT</span> models, as shown in Table <a href="#table:dev-results" data-reference-type="ref" data-reference="table:dev-results">[table:dev-results]</a>. We find that training with target diffs is beneficial across all models, with an increase of about 5 <span class="math inline">\(M^2\)</span> points for the <span class="smallcaps">Word+bi</span> model, for example. Adding <span class="smallcaps">+dom</span> information slightly improves effectiveness across models.</p>
+<p>We analyzed deletion, insertion, and replacement error types. Table <a href="#table:replacementsTrainingFreq" data-reference-type="ref" data-reference="table:replacementsTrainingFreq">[table:replacementsTrainingFreq]</a> compares effectiveness across replacement errors. We found the <span class="smallcaps">CharCNN+Bi</span> models were less effective than <span class="smallcaps">CharCNN</span> variants in terms of GLEU and <span class="math inline">\(M^2\)</span>, and the strongest <span class="smallcaps">CharCNN</span> models were eclipsed by the <span class="smallcaps">Word+Bi</span> models in terms of the GLEU and <span class="math inline">\(M^2\)</span> scores. However, Table <a href="#table:replacementsTrainingFreq" data-reference-type="ref" data-reference="table:replacementsTrainingFreq">[table:replacementsTrainingFreq]</a> shows <span class="smallcaps">CharCNN+dom</span> is stronger on lower frequency replacements than <span class="smallcaps">Word</span> models. The <span class="smallcaps">Char+Bi+dom</span> model is relatively strong on article and punctuation replacements, as well as errors appearing with low frequency in the training set and overall across deletion and insertion error types, which are summarized in Table <a href="#table:deletionsInsertionsTrainingFreq" data-reference-type="ref" data-reference="table:deletionsInsertionsTrainingFreq">[table:deletionsInsertionsTrainingFreq]</a>.</p>
+<h4 id="errors-never-occurring-in-training">Errors never occurring in training</h4>
+<p>The comparatively high Micro <span class="math inline">\(F_{0.5}\)</span> score (18.66) for the <span class="smallcaps">Char+Bi+dom</span> model on replacement errors (Table <a href="#table:replacementsTrainingFreq" data-reference-type="ref" data-reference="table:replacementsTrainingFreq">[table:replacementsTrainingFreq]</a>) never occurring in training is a result of a high precision (92.65) coupled with a low recall (4.45). This suggests some limited capacity to generalize to items not seen in training. A selectively chosen example is the replacement from “discontinous” to “discontinuous”, which never occurs in training. However, similar errors of low edit distance also occur once in the dev set and never in training, but the <span class="smallcaps">Char+Bi+dom</span> model never correctly recovers many of these errors, and many of the correctly recovered errors are minor changes in capitalization or hyphenation.</p>
+<h4 id="error-frequency">Error frequency</h4>
+<p>About 39% of the AESW training sentences have errors, and of those sentences, on average, 2.4 words are involved in changes in deletions, insertions, or replacements (i.e., the count of words occurring between diff tags) per sentence. In the NUCLE data, about 37% of the sentences have errors, of which on average, 5.3 words are involved in changes. On the AESW dev set, if we only consider the 9545 sentences in which 4 or more words are involved in a change (average of 5.8 words in changes per sentence), the <span class="smallcaps">Char+Bi</span> model is still more effective than <span class="smallcaps">SMT+BLEU</span>, with a GLEU score of 67.21 vs. 65.34. The baseline GLEU score (No Change) is 60.86, reflecting the greater number of changes relative to the full dataset (cf. Table 1).</p>
+<h4 id="re-annotation">Re-annotation</h4>
+<p>The AESW dataset only provides 1 annotation for each sentence, so we perform a small re-annotation of the data to gauge effectiveness in the presence of multiple annotations. We collected 3 outputs (source, gold, and generated sentences from the <span class="smallcaps">Char+Bi+dom</span> model) for 200 randomly sampled sentences, re-annotating to create 3 new references for each sentence. The GLEU scores for the 200 original source, <span class="smallcaps">Char+Bi+dom</span>, and original gold sentences evaluated against the 3 new references were 79.79, 81.72, and 84.78, respectively, suggesting that there is still progress to be made on the task relative to human levels of annotation.</p>
+<h1 id="results-and-analysis-conll">Results and Analysis: CoNLL</h1>
+<table>
+<caption><span><span class="math inline">\(M^2\)</span> scores on the CoNLL-2013 set.</span><span label="table:conll-tuning"></span></caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: center;">Precision</th>
+<th style="text-align: center;">Recall</th>
+<th style="text-align: center;"><span class="math inline">\(F_{0.5}\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><span class="smallcaps">Word+Bi<strong>–</strong>diffs</span></td>
+<td style="text-align: center;">65.36</td>
+<td style="text-align: center;">6.19</td>
+<td style="text-align: center;">22.45</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><span class="smallcaps">Word+Bi</span>, before tuning</td>
+<td style="text-align: center;">72.34</td>
+<td style="text-align: center;">0.97</td>
+<td style="text-align: center;">4.60</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><span class="smallcaps">Word+Bi</span>, after tuning</td>
+<td style="text-align: center;">46.66</td>
+<td style="text-align: center;">15.35</td>
+<td style="text-align: center;">33.14</td>
+</tr>
+</tbody>
+</table>
+<p>Table <a href="#table:conll-tuning" data-reference-type="ref" data-reference="table:conll-tuning">[table:conll-tuning]</a> shows the results on the CoNLL dev set, and Table <a href="#table:conll-data-and-test" data-reference-type="ref" data-reference="table:conll-data-and-test">[table:conll-data-and-test]</a> contains the final test results.</p>
+<p>Since the CoNLL data does not contain enough data for training neural models, previous works add the crowd-sourced Lang-8 data; however, this data is not professionally annotated. Since the distribution of corrections differs between the dev/test and training sets, we need to tune the precision and recall.</p>
+<p>As shown in Table <a href="#table:conll-tuning" data-reference-type="ref" data-reference="table:conll-tuning">[table:conll-tuning]</a>, <span class="smallcaps">Word+Bi</span> effectiveness increases significantly by tuning the weights<a href="#fn8" class="footnote-ref" id="fnref8" role="doc-noteref"><sup>8</sup></a> assigned to the diff tags on the CoNLL-2013 set<a href="#fn9" class="footnote-ref" id="fnref9" role="doc-noteref"><sup>9</sup></a>. Note that we are tuning the weights on this same CoNLL-2013 set. Without tuning, the model very rarely generates a change, albeit with a high precision. After tuning, it exceeds the effectiveness of <span class="smallcaps">Word+Bi<strong>–</strong>diffs</span>. The comparatively low effectiveness of <span class="smallcaps">Word+Bi<strong>–</strong>diffs</span> is consistent with past sequence-to-sequence approaches utilizing data augmentation, additional annotated data, and/or secondary models to achieve competitive levels of effectiveness.</p>
+<p>Table <a href="#table:conll-data-and-test" data-reference-type="ref" data-reference="table:conll-data-and-test">[table:conll-data-and-test]</a> shows that <span class="smallcaps">Word+Bi</span> is within 0.2 <span class="math inline">\(M^2\)</span> of , despite using over 1 million fewer sentence pairs, and exceeds the <span class="math inline">\(M^2\)</span> scores of and without the secondary models of those systems. We hypothesize that further gains are possible utilizing the CLC data and moving to the character model. (The character model is omitted here due to the long training time of about 4 weeks.) Notably, SMT systems (with LMs) are still more effective than reported sequence-to-sequence results, as in , on CoNLL.<a href="#fn10" class="footnote-ref" id="fnref10" role="doc-noteref"><sup>10</sup></a></p>
+<p><span>lT<span>26mm</span>c</span> &amp; Data &amp; <span class="math inline">\(M^2\)</span><br />
+&amp; CLC<span class="math inline">\(^*\)</span> &amp; 39.90<br />
+&amp; NUCLE, Lang-8, Common Crawl LM &amp; 40.56<br />
+&amp; NUCLE, Lang-8, CLC<span class="math inline">\(^*\)</span> &amp; 41.53<br />
+<span class="smallcaps">Word+Bi<strong>–</strong>diffs</span> &amp; NUCLE, Lang-8 &amp; 35.73<br />
+<span class="smallcaps">Word+Bi</span> &amp; NUCLE, Lang-8 &amp; 41.37<br />
+</p>
+<h1 id="conclusion">Conclusion</h1>
+<p>Our experiments demonstrate that on a large, professionally annotated dataset, a sequence-to-sequence character-based model of diffs can lead to considerable effectiveness gains over a state-of-the-art SMT system with task-specific features, ceteris paribus. Furthermore, in the crowd-sourced environment of the CoNLL data, in which there are comparatively few professionally annotated sentences in training, modeling diffs enables a means of tuning that improves the effectiveness of sequence-to-sequence models for the task.</p>
+<h1 id="sec:supplemental">Supplemental Material</h1>
+<h4 id="additional-model-training-and-inference-details">Additional Model Training and Inference Details</h4>
+<p>We provide additional replication details for our experiments here. Our code and related materials are available at the following url: <a href="https://github.com/allenschmaltz/grammar">https://github.com/allenschmaltz/grammar</a>.</p>
+<p>The training and tuning sizes of the AESW dataset are those after dropping sentences exceeding 126 tokens on the source or target side (in source sequences or target sequences with diff annotation tags) from the raw AESW dataset. All evaluation metrics on the development and test set are on the data without filtering based on sentence lengths.</p>
+<p>As part of preprocessing, the sentences from the AESW XML are converted to Penn Treebank-style tokenization. Case is maintained and digits are not replaced with holder symbols for the sequence-to-sequence models. For the <span class="smallcaps">SMT</span> models, the truecasing<a href="#fn11" class="footnote-ref" id="fnref11" role="doc-noteref"><sup>11</sup></a> and tokenization pipeline of the publicly available code is used. For consistency, all model output and all reference files are converted to cased Moses-style tokenization prior to evaluation.</p>
+<p>For the <span class="smallcaps">Char</span> model, the <span class="math inline">\(L_2\)</span>-normalized gradients were constrained to be <span class="math inline">\(\le 1\)</span> (instead of <span class="math inline">\(\le 5\)</span> with the other models), and our learning rate schedule started the learning rate at 0.5 (instead of 1 for the other models) for stable training. The maximum sequence length of 421 was used for models given character sequences, which was equivalent to the maximum sequence length of 126 used for models given word sequences. The maximum sequence lengths were increased by 1 for the models with the <span class="smallcaps">+dom</span> features. The training and tuning set sizes cited in Section 3 are the number of sentences from the raw dataset after dropping sentences exceeding these maximum sequence lengths.</p>
+<p>In practice, we were able to train each of the purely character-based models (e.g., the <span class="smallcaps">Char+Bi+dom</span> model) with a single NVIDIA Quadro P6000 GPU with 24 GB of memory in about 3 weeks with a batch size of 12.</p>
+<p>For the sequence-to-sequence models, the closed vocabularies were restricted to the 50,000 most common tokens, and a single special <span class="math inline">\(\mathsf{ \textless unk\textgreater}\)</span> token was used for all remaining low frequency tokens. An <span class="math inline">\(\mathsf{ \textless unk\textgreater}\)</span> token generated in the target sentence by the <span class="smallcaps">Word</span> and <span class="smallcaps">CharCNN</span> models was replaced with the source token associated with the maximum attention weight. The “open” vocabularies were only limited to the space of characters seen in training.</p>
+<p>For the phrase-based machine translation baseline model from the work of , for dense features, we used the stateless edit distance features and the stateful Operation Sequence Model (OSM) of <a href="#fn12" class="footnote-ref" id="fnref12" role="doc-noteref"><sup>12</sup></a>. Since for our controlled data experiments we removed the language model features associated with external data, we did not use the word-class language model feature, so for the sparse features, we used the set of edit operations on “words with left/right context of maximum length 1 on words” (set “E0C10” from the original paper), instead of those dependent on word classes.</p>
+<p>The training and tuning splits for the phrase-based machine translation models were the same as for the sequence-to-sequence models. For tuning, we used Batch-Mira, setting the background corpus decay rate to 0.001, as in previous work. As in previous work, we repeated the tuning process multiple times (in this case, 5 times) and averaged the final weight vectors.</p>
+<p>The sequence-to-sequence models were decoded with a beam size of 10.</p>
+<p>Decoding of the <span class="smallcaps">SMT</span> models used the same approach of (i.e., the open-source Moses decoder run with the cube pruning search algorithm).</p>
+<p>In our experiments, we do not include additional paragraph context features, since the underlying AESW data appears to have been collected such that nearly all paragraphs (including those containing a single sentence) contain at least one error; thus, modeling paragraph information provides additional signal that seems unlikely to reflect real-world environments.</p>
+<h4 id="conll-2014-shared-task">CoNLL-2014 Shared Task</h4>
+<p>For training, we used the copy of the Lang-8 corpus distributed in the repo for the code of : <a href="https://github.com/grammatical/baselines-emnlp2016">https://github.com/grammatical/baselines-emnlp2016</a>. We filtered the Lang-8 data to remove duplicates and target sentences containing emoticon text, informal colloquial words (e.g., “haha”, “lol”, “yay”), and non-ascii characters. Target sentences not starting with a capital letter were dropped, as were target sentences not ending in a period, question mark, exclamation mark, or quotation mark. (Target sentences ending in a parenthesis were dropped as they often indicate informal additional comments from the editor.) In the combined NUCLE and Lang-8 training set, source sentences longer than 79 tokens and target sentences longer than 100 tokens were dropped. This resulted in a training set with 1,470,992 sentences. Diffs were created using the Python class difflib.SequenceMatcher.</p>
+<p>For tuning on the dev set<a href="#fn13" class="footnote-ref" id="fnref13" role="doc-noteref"><sup>13</sup></a>, a coarse grid search between 0 and 1.0 was used to set the four bias parameters associated with each diff tag. (Training was performed without re-weighting.) The bias parameter (in this case 0.7) yielding the highest <span class="math inline">\(M^2\)</span> score on the decoded dev set was chosen for use in evaluation of the final test set. The <span class="math inline">\(M^2\)</span> scores across the tuning runs on the dev set for the <span class="smallcaps">Word+Bi</span> model are shown in Table <a href="#table:conll-tuning-weights" data-reference-type="ref" data-reference="table:conll-tuning-weights">[table:conll-tuning-weights]</a>.</p>
+<table>
+<caption><span><span class="math inline">\(M^2\)</span> scores on the CoNLL-2013 dev set for the <span class="smallcaps">Word+Bi</span> model.</span><span label="table:conll-tuning-weights"></span></caption>
+<thead>
+<tr class="header">
+<th style="text-align: center;">Bias parameter</th>
+<th style="text-align: center;">Precision</th>
+<th style="text-align: center;">Recall</th>
+<th style="text-align: center;"><span class="math inline">\(F_{0.5}\)</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: center;">0.0</td>
+<td style="text-align: center;">72.34</td>
+<td style="text-align: center;">0.97</td>
+<td style="text-align: center;">4.60</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">0.1</td>
+<td style="text-align: center;">69.74</td>
+<td style="text-align: center;">1.51</td>
+<td style="text-align: center;">6.96</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">0.2</td>
+<td style="text-align: center;">72.00</td>
+<td style="text-align: center;">2.57</td>
+<td style="text-align: center;">11.23</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">0.3</td>
+<td style="text-align: center;">69.05</td>
+<td style="text-align: center;">4.14</td>
+<td style="text-align: center;">16.68</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">0.4</td>
+<td style="text-align: center;">67.19</td>
+<td style="text-align: center;">6.08</td>
+<td style="text-align: center;">22.31</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">0.5</td>
+<td style="text-align: center;">61.03</td>
+<td style="text-align: center;">8.76</td>
+<td style="text-align: center;">27.82</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">0.6</td>
+<td style="text-align: center;">51.75</td>
+<td style="text-align: center;">11.41</td>
+<td style="text-align: center;">30.31</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;"><strong>0.7</strong></td>
+<td style="text-align: center;"><strong>46.66</strong></td>
+<td style="text-align: center;"><strong>15.35</strong></td>
+<td style="text-align: center;"><strong>33.14</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">0.8</td>
+<td style="text-align: center;">40.01</td>
+<td style="text-align: center;">18.68</td>
+<td style="text-align: center;">32.57</td>
+</tr>
+<tr class="even">
+<td style="text-align: center;">0.9</td>
+<td style="text-align: center;">34.49</td>
+<td style="text-align: center;">22.08</td>
+<td style="text-align: center;">31.00</td>
+</tr>
+<tr class="odd">
+<td style="text-align: center;">1.0</td>
+<td style="text-align: center;">30.17</td>
+<td style="text-align: center;">24.90</td>
+<td style="text-align: center;">28.94</td>
+</tr>
+</tbody>
+</table>
+<p>For future comparisons to our work on the CoNLL-2014 shared task data, we recommend using the preprocessing scripts provided in our code repo (<a href="https://github.com/allenschmaltz/grammar">https://github.com/allenschmaltz/grammar</a>).</p>
+<h4 id="table-2">Table 2</h4>
+<p>The seven columns of Table 2 appearing in the main text are Micro <span class="math inline">\(F_{0.5}\)</span> scores for the errors within each frequency grouping. There are a total of 39,916 replacement changes. The replacements are grouped in regard to the changes within the opening and closing deletion tags and subsequent opening and closing insertion tags, as follows: (1) whether the replacement involves (on the deletion and/or insertion side) a single punctuation symbol (comma, colon, period, hyphen, apostrophe, quotation mark, semicolon, exclamation, question mark); (2) whether the replacement involves (on the deletion and/or insertion side) a single article (a, an, the); (3) non-article, non-punctuation grouped errors with frequency greater than 100 in the gold training data; (4) non-article, non-punctuation grouped errors with frequency less than or equal to 100 and greater than or equal to 5; (5) non-article, non-punctuation grouped errors with frequency less than 5 and greater than or equal to 2; (6) non-article, non-punctuation grouped errors with frequency equal to 1; (7) non-article, non-punctuation grouped errors that never occurred in the training data. Note that the large number of unique instances occurring for the “punctuation” and “articles” classes are a result of the large number of errors that can occur on the non-article, non-punctuation side of the replacement. The Micro <span class="math inline">\(F_{0.5}\)</span> scores are calculated by treating each individual error (rather than the agglomerated classes here) as binary classifications.</p>
+<section class="footnotes" role="doc-endnotes">
+<hr />
+<ol>
+<li id="fn1" role="doc-endnote"><p>The paragraphs are shuffled for purposes of obfuscation, so document-level context is not available.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2" role="doc-endnote"><p>Characteristics of the dataset preclude experiments with additional paragraph context features. (See Appendix A.)<a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3" role="doc-endnote"><p>The dev set contains 13,562 unique deletion types, 29,952 insertion types, and 39,930 replacement types.<a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn4" role="doc-endnote"><p>about 1.4 million sentences after filtering<a href="#fnref4" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn5" role="doc-endnote"><p>derived from the Lang-8 language-learning website<a href="#fnref5" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn6" role="doc-endnote"><p>SRI International provided access to SRILM <span class="citation" data-cites="Stolcke02srilm"></span> for running<a href="#fnref6" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn7" role="doc-endnote"><p>We found that including the features and data associated with the large language models of , created from Common Crawl text filtered against the NUCLE corpus, <em>hurt</em> effectiveness for the phrase-based models. This is likely a reflection of the domain specific nature of the academic text and LaTeX holder symbols appearing in the text. Here, we conduct controlled experiments without introducing additional domain-specific monolingual data.<a href="#fnref7" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn8" role="doc-endnote"><p>In contrast, in early experiments on AESW, tuning yielded negligible improvements.<a href="#fnref8" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn9" role="doc-endnote"><p>The single model with highest <span class="math inline">\(M^2\)</span> score was then run on the test set. Here, a single set is used for tuning and dev.<a href="#fnref9" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn10" role="doc-endnote"><p>For reference, the reported <span class="math inline">\(M^2\)</span> results of the carefully optimized SMT system of trained on NUCLE and Lang-8, with parameter vectors averaged over multiple runs, with a Wikipedia LM is 45.95 and adding a Common Crawl LM is 49.49. We leave to future work the intersection of a LM for the CoNLL environment and more generally, whether these patterns hold in the presence of additional monolingual data.<a href="#fnref10" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn11" role="doc-endnote"><p>Here, the truecase language model is created from the training <span class="math inline">\(\mathbf{t}\)</span> sequences (or where applicable, the target with diffs).<a href="#fnref11" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn12" role="doc-endnote"><p>The OSM features use the SRI Language Modeling Toolkit (SRILM) <span class="citation" data-cites="Stolcke02srilm"></span>.<a href="#fnref12" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn13" role="doc-endnote"><p>Previous work, such as , also used the CoNLL-2013 set for tuning.<a href="#fnref13" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+    </article>
+  </main>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</body>
+
+</html>

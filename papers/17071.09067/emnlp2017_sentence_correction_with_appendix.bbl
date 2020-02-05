@@ -1,0 +1,237 @@
+\begin{thebibliography}{28}
+\expandafter\ifx\csname natexlab\endcsname\relax\def\natexlab#1{#1}\fi
+
+\bibitem[{Chollampatt et~al.(2016{\natexlab{a}})Chollampatt, Hoang, and
+  Ng}]{chollampatt-hoang-ng:2016:EMNLP2016}
+Shamil Chollampatt, Duc~Tam Hoang, and Hwee~Tou Ng. 2016{\natexlab{a}}.
+\newblock \href {https://aclweb.org/anthology/D16-1195} {Adapting grammatical
+  error correction based on the native language of writers with neural network
+  joint models}.
+\newblock In \emph{Proceedings of the 2016 Conference on Empirical Methods in
+  Natural Language Processing}, pages 1901--1911, Austin, Texas. Association
+  for Computational Linguistics.
+
+\bibitem[{Chollampatt et~al.(2016{\natexlab{b}})Chollampatt, Taghipour, and
+  Ng}]{ChollampattElAl-2016-SMTwithNNfeatures}
+Shamil Chollampatt, Kaveh Taghipour, and Hwee~Tou Ng. 2016{\natexlab{b}}.
+\newblock \href {http://dl.acm.org/citation.cfm?id=3060832.3061008} {Neural
+  network translation models for grammatical error correction}.
+\newblock In \emph{Proceedings of the Twenty-Fifth International Joint
+  Conference on Artificial Intelligence}, IJCAI'16, pages 2768--2774. AAAI
+  Press.
+
+\bibitem[{Dahlmeier and Ng(2012)}]{DahlmeierEtAl2012-M2}
+Daniel Dahlmeier and Hwee~Tou Ng. 2012.
+\newblock \href {http://dl.acm.org/citation.cfm?id=2382029.2382118} {Better
+  evaluation for grammatical error correction}.
+\newblock In \emph{Proceedings of the 2012 Conference of the North American
+  Chapter of the Association for Computational Linguistics: Human Language
+  Technologies}, NAACL HLT '12, pages 568--572, Stroudsburg, PA, USA.
+  Association for Computational Linguistics.
+
+\bibitem[{Dahlmeier et~al.(2013)Dahlmeier, Ng, and
+  Wu}]{dahlmeier-ng-wu:2013:BEA8}
+Daniel Dahlmeier, Hwee~Tou Ng, and Siew~Mei Wu. 2013.
+\newblock \href {http://www.aclweb.org/anthology/W13-1703} {Building a large
+  annotated corpus of learner english: The nus corpus of learner english}.
+\newblock In \emph{Proceedings of the Eighth Workshop on Innovative Use of NLP
+  for Building Educational Applications}, pages 22--31, Atlanta, Georgia.
+  Association for Computational Linguistics.
+
+\bibitem[{Dale et~al.(2012)Dale, Anisimoff, and
+  Narroway}]{DaleEtAl-2012-HOO2012PrepAndDetErrors}
+Robert Dale, Ilya Anisimoff, and George Narroway. 2012.
+\newblock \href {http://dl.acm.org/citation.cfm?id=2390384.2390390} {Hoo 2012:
+  A report on the preposition and determiner error correction shared task}.
+\newblock In \emph{Proceedings of the Seventh Workshop on Building Educational
+  Applications Using NLP}, pages 54--62, Stroudsburg, PA, USA. Association for
+  Computational Linguistics.
+
+\bibitem[{Dale and Kilgarriff(2011)}]{DaleAndKilgarriff-2011-HOOPilot}
+Robert Dale and Adam Kilgarriff. 2011.
+\newblock \href {http://dl.acm.org/citation.cfm?id=2187681.2187725} {Helping
+  our own: The hoo 2011 pilot shared task}.
+\newblock In \emph{Proceedings of the 13th European Workshop on Natural
+  Language Generation}, ENLG '11, pages 242--249, Stroudsburg, PA, USA.
+  Association for Computational Linguistics.
+
+\bibitem[{Daudaravicius(2016)}]{Daudaravicius2016-dataset}
+Vidas Daudaravicius. 2016.
+\newblock Automated evaluation of scientific writing data set (version 1.2)
+  [data file].
+\newblock VTeX.
+
+\bibitem[{Daudaravicius et~al.(2016)Daudaravicius, Banchs, Volodina, and
+  Napoles}]{daudaravicius-EtAl:2016:BEA11}
+Vidas Daudaravicius, Rafael~E. Banchs, Elena Volodina, and Courtney Napoles.
+  2016.
+\newblock \href {http://www.aclweb.org/anthology/W16-0506} {A report on the
+  automatic evaluation of scientific writing shared task}.
+\newblock In \emph{Proceedings of the 11th Workshop on Innovative Use of NLP
+  for Building Educational Applications}, pages 53--62, San Diego, CA.
+  Association for Computational Linguistics.
+
+\bibitem[{Durrani et~al.(2013)Durrani, Fraser, Schmid, Hoang, and
+  Koehn}]{durrani-EtAl:2013:Short}
+Nadir Durrani, Alexander Fraser, Helmut Schmid, Hieu Hoang, and Philipp Koehn.
+  2013.
+\newblock \href {http://www.aclweb.org/anthology/P13-2071} {Can markov models
+  over minimal translation units help phrase-based smt?}
+\newblock In \emph{Proceedings of the 51st Annual Meeting of the Association
+  for Computational Linguistics (Volume 2: Short Papers)}, pages 399--405,
+  Sofia, Bulgaria. Association for Computational Linguistics.
+
+\bibitem[{Graham et~al.(2014)Graham, Mathur, and
+  Baldwin}]{graham-mathur-baldwin:2014:W14-33}
+Yvette Graham, Nitika Mathur, and Timothy Baldwin. 2014.
+\newblock \href {http://aclweb.org/anthology/W/W14/W14-3333.pdf} {Randomized
+  significance tests in machine translation}.
+\newblock In \emph{Proceedings of the Ninth Workshop on Statistical Machine
+  Translation}, pages 266--274, Baltimore, Maryland, USA. Association for
+  Computational Linguistics.
+
+\bibitem[{Hoang et~al.(2016)Hoang, Chollampatt, and
+  Ng}]{HoangEtAl2016-IJCAI-NbestSMTReranking}
+Duc~Tam Hoang, Shamil Chollampatt, and Hwee~Tou Ng. 2016.
+\newblock \href {http://dl.acm.org/citation.cfm?id=3060832.3061013} {Exploiting
+  n-best hypotheses to improve an smt approach to grammatical error
+  correction}.
+\newblock In \emph{Proceedings of the Twenty-Fifth International Joint
+  Conference on Artificial Intelligence}, IJCAI'16, pages 2803--2809. AAAI
+  Press.
+
+\bibitem[{{Ji} et~al.(2017){Ji}, {Wang}, {Toutanova}, {Gong}, {Truong}, and
+  {Gao}}]{JiEtal2017arXiv-NestedAttention}
+J.~{Ji}, Q.~{Wang}, K.~{Toutanova}, Y.~{Gong}, S.~{Truong}, and J.~{Gao}. 2017.
+\newblock \href {http://arxiv.org/abs/1707.02026} {{A Nested Attention Neural
+  Hybrid Model for Grammatical Error Correction}}.
+\newblock \emph{ArXiv e-prints}.
+
+\bibitem[{Junczys-Dowmunt and
+  Grundkiewicz(2016)}]{junczysdowmunt-grundkiewicz:2016:EMNLP2016}
+Marcin Junczys-Dowmunt and Roman Grundkiewicz. 2016.
+\newblock \href {https://aclweb.org/anthology/D16-1161} {Phrase-based machine
+  translation is state-of-the-art for automatic grammatical error correction}.
+\newblock In \emph{Proceedings of the 2016 Conference on Empirical Methods in
+  Natural Language Processing}, pages 1546--1556, Austin, Texas. Association
+  for Computational Linguistics.
+
+\bibitem[{Kim et~al.(2016)Kim, Jernite, Sontag, and Rush}]{KimEtAl-2016-CharLM}
+Yoon Kim, Yacine Jernite, David Sontag, and Alexander~M. Rush. 2016.
+\newblock {C}haracter-{A}ware {N}eural {L}anguage {M}odels.
+\newblock In \emph{Proceedings of AAAI}.
+
+\bibitem[{{Klein} et~al.(){Klein}, {Kim}, {Deng}, {Senellart}, and
+  {Rush}}]{2017opennmt}
+G.~{Klein}, Y.~{Kim}, Y.~{Deng}, J.~{Senellart}, and A.~M. {Rush}.
+\newblock \href {http://arxiv.org/abs/1701.02810} {{OpenNMT: Open-Source
+  Toolkit for Neural Machine Translation}}.
+\newblock \emph{ArXiv e-prints}.
+
+\bibitem[{Koehn(2004)}]{koehn:2004:EMNLP}
+Philipp Koehn. 2004.
+\newblock Statistical significance tests for machine translation evaluation.
+\newblock In \emph{Proceedings of EMNLP 2004}, pages 388--395, Barcelona,
+  Spain. Association for Computational Linguistics.
+
+\bibitem[{Luong et~al.(2015)Luong, Pham, and
+  Manning}]{luong-pham-manning:2015:EMNLP}
+Minh-Thang Luong, Hieu Pham, and Christopher~D. Manning. 2015.
+\newblock \href {http://aclweb.org/anthology/D15-1166} {Effective approaches to
+  attention-based neural machine translation}.
+\newblock In \emph{Empirical Methods in Natural Language Processing (EMNLP)},
+  pages 1412--1421, Lisbon, Portugal. Association for Computational
+  Linguistics.
+
+\bibitem[{Mizumoto et~al.(2012)Mizumoto, Hayashibe, Komachi, Nagata, and
+  Matsumoto}]{mizumoto-EtAl:2012:POSTERS}
+Tomoya Mizumoto, Yuta Hayashibe, Mamoru Komachi, Masaaki Nagata, and Yuji
+  Matsumoto. 2012.
+\newblock \href {http://www.aclweb.org/anthology/C12-2084} {The effect of
+  learner corpus size in grammatical error correction of {ESL} writings}.
+\newblock In \emph{Proceedings of COLING 2012: Posters}, pages 863--872,
+  Mumbai, India. The COLING 2012 Organizing Committee.
+
+\bibitem[{Napoles et~al.(2016)Napoles, Sakaguchi, Post, and
+  Tetreault}]{napoles2016gleu}
+Courtney Napoles, Keisuke Sakaguchi, Matt Post, and Joel Tetreault. 2016.
+\newblock \href {http://arxiv.org/abs/1605.02592} {{GLEU} without tuning}.
+\newblock \emph{eprint arXiv:1605.02592 [cs.CL]}.
+
+\bibitem[{Ng et~al.(2014)Ng, Wu, Briscoe, Hadiwinoto, Susanto, and
+  Bryant}]{NgEtAl-2014-SharedTask2014}
+Hwee~Tou Ng, Siew~Mei Wu, Ted Briscoe, Christian Hadiwinoto, Raymond~Hendy
+  Susanto, and Christopher Bryant. 2014.
+\newblock \href {http://www.aclweb.org/anthology/W/W14/W14-1701} {The
+  {CoNLL}-2014 shared task on grammatical error correction}.
+\newblock In \emph{Proceedings of the Eighteenth Conference on Computational
+  Natural Language Learning: Shared Task}, pages 1--14, Baltimore, Maryland.
+  Association for Computational Linguistics.
+
+\bibitem[{Ng et~al.(2013)Ng, Wu, Wu, Hadiwinoto, and
+  Tetreault}]{NgEtAl-2013-CoNLL-SharedTask2013}
+Hwee~Tou Ng, Siew~Mei Wu, Yuanbin Wu, Christian Hadiwinoto, and Joel Tetreault.
+  2013.
+\newblock \href {http://www.aclweb.org/anthology/W13-3601} {The {CoNLL}-2013
+  shared task on grammatical error correction}.
+\newblock In \emph{Proceedings of the Seventeenth Conference on Computational
+  Natural Language Learning: Shared Task}, pages 1--12, Sofia, Bulgaria.
+  Association for Computational Linguistics.
+
+\bibitem[{Nicholls(2003)}]{Nicholls2003-CLC}
+Diane Nicholls. 2003.
+\newblock The cambridge learner corpus: Error coding and analysis for
+  lexicography and {ELT}.
+\newblock In \emph{Proceedings of the Corpus Linguistics 2003 conference},
+  pages 572--581.
+
+\bibitem[{Rozovskaya and Roth(2016)}]{rozovskaya-roth:2016:P16-1}
+Alla Rozovskaya and Dan Roth. 2016.
+\newblock \href {http://www.aclweb.org/anthology/P16-1208} {Grammatical error
+  correction: Machine translation and classifiers}.
+\newblock In \emph{Proceedings of the 54th Annual Meeting of the Association
+  for Computational Linguistics (Volume 1: Long Papers)}, pages 2205--2215,
+  Berlin, Germany. Association for Computational Linguistics.
+
+\bibitem[{Schmaltz et~al.(2016)Schmaltz, Kim, Rush, and
+  Shieber}]{schmaltz-EtAl:2016:BEA11}
+Allen Schmaltz, Yoon Kim, Alexander~M. Rush, and Stuart Shieber. 2016.
+\newblock \href {http://www.aclweb.org/anthology/W16-0528} {Sentence-level
+  grammatical error identification as sequence-to-sequence correction}.
+\newblock In \emph{Proceedings of the 11th Workshop on Innovative Use of NLP
+  for Building Educational Applications}, pages 242--251, San Diego, CA.
+  Association for Computational Linguistics.
+
+\bibitem[{Stolcke(2002)}]{Stolcke02srilm}
+Andreas Stolcke. 2002.
+\newblock Srilm -- an extensible language modeling toolkit.
+\newblock In \emph{Proc. Intl. Conf. on Spoken Language Processing}, volume~2,
+  pages 901--904, Denver.
+
+\bibitem[{Tajiri et~al.(2012)Tajiri, Komachi, and
+  Matsumoto}]{tajiri-komachi-matsumoto:2012:ACL2012short}
+Toshikazu Tajiri, Mamoru Komachi, and Yuji Matsumoto. 2012.
+\newblock \href {http://www.aclweb.org/anthology/P12-2039} {Tense and aspect
+  error correction for esl learners using global context}.
+\newblock In \emph{Proceedings of the 50th Annual Meeting of the Association
+  for Computational Linguistics (Volume 2: Short Papers)}, pages 198--202, Jeju
+  Island, Korea. Association for Computational Linguistics.
+
+\bibitem[{Xie et~al.(2016)Xie, Avati, Arivazhagan, Jurafsky, and
+  Ng}]{XieEtAl.2016-arxiv-NLCwithCharAttention}
+Ziang Xie, Anand Avati, Naveen Arivazhagan, Dan Jurafsky, and Andrew~Y. Ng.
+  2016.
+\newblock \href {http://arxiv.org/abs/1603.09727} {Neural language correction
+  with character-based attention}.
+\newblock \emph{CoRR}, abs/1603.09727.
+
+\bibitem[{Yuan and Briscoe(2016)}]{yuan-briscoe:2016:N16-1}
+Zheng Yuan and Ted Briscoe. 2016.
+\newblock \href {http://www.aclweb.org/anthology/N16-1042} {Grammatical error
+  correction using neural machine translation}.
+\newblock In \emph{Proceedings of the 2016 Conference of the North American
+  Chapter of the Association for Computational Linguistics: Human Language
+  Technologies}, pages 380--386, San Diego, California. Association for
+  Computational Linguistics.
+
+\end{thebibliography}
