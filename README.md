@@ -3,5 +3,5 @@
 ## Commands
 
 ```bash
-pandoc --from latex --to html --standalone --template ../../template.html --mathjax --out paper.html $FILENAME
+pandoc --from latex --to html --standalone --template ../../template.html --mathjax --out index.html $FILENAME
 ```
